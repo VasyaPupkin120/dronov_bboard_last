@@ -1,0 +1,3076 @@
+пароль теперь vvvvvvvv11
+
+
+Продолжение конспекта Дронова, это отдельный проект.
+
+0. Создать базовый шаблон.
+0. Создать главную страничку: контроллер, маршрут, шаблон.
+0. Порядок создания новых вторичных страничек: создать контроллер, создать маршрут, создать шаблон новой странички, подправить базовый шаблон и все, на которых могла бы быть ссылка на эту страничку.
+
+
+Часть IV. Практическое занятие: разработка веб-сайта.
+
+
+Глава 31. Дизайн, вспомогательные веб-страницы.
+
+
+31.1. План веб-сайта
+
+тот же сайт объявлений, два уровня рубрик - обший и конкретный, пагинация, комментарии под объявлениями для зарегистрированных пользователей, основная и дополнительные иллюстрации к объявлениям, регистрация с подтверждением аккаунта через почту.
+
+Набор страниц:
+1. Главная - десять последних объявлений, без разбиения на рубрики
+2. Страница списка объявлений - объявления из выбранной рубрики, с пагинацией. Форма для поиска объявления по выбранному слову.
+3. Страница сведений об выбранном объявлении - выведет объявление, комментарии к нему, форму для добавления нового комментария.
+4. Страницы регистрации и активации нового пользователя.
+5. Страницы входа и выхода.
+6. Страница профиля зарегистрированного пользователя - список объявлений пользователя.
+7. Страницы добавления, правки, удаления объявлений.
+8. Страницы изменения пароля, правки и удаления пользовательского профиля.
+9. Страница сведений об сайте, о правах его разработчика, пользовательского соглашения и т.д.
+
+
+31.2. Подготовка проекта и приложения main.
+
+Проект - bboard, главное приложение - main. В main вся функциональность, кроме веб-службы, под нее отдельное приложение api.
+
+
+31.2.1. Создание и настройка проекта.
+
+Создаю новую директорию с рабочими проектами, в старом окружении django-admin не хотел работать.
+
+    python3 -m venv env
+    seba
+    pip install Django
+    djagno-admin startproject bboard
+
+Изменим имя БД на bboard.data в настройках, так как это еще до старта конкретных приложений, то файла БД еще нет, но он будет создан после первой миграции, и судя по всему, именно с названием, взятым из настроек.
+Изменим язык вывода системных сообщений и страниц админки на ru.
+
+/bboard/bboard/settings.py
+##############################################################################
+...
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'bboard.data',
+    }
+}
+...
+
+LANGUAGE_CODE = 'ru'
+...
+##############################################################################
+
+
+31.2.2. Создание и настройка приложения main. 
+
+В директории проекта отредактируем файл manage.py под запуск третитьм питоном и выполним команду:
+
+    ./manage.py startapp main
+
+
+В новом приложении откроем файл настроек apps.py, добавим в конфигурационный класс MainConfig атрибут verbose_name с названием приложения. Зарегистрируем наше новое приложение в списке приложений:
+
+/bboard/main/apps.py
+##############################################################################
+from django.apps import AppConfig
+class MainConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'main'
+    verbose_name = 'Доска объявлений'
+##############################################################################
+
+
+/bboard/bboard/settings.py
+##############################################################################
+INSTALLED_APPS = [
+    ...
+    'django.contrib.staticfiles',
+    'main.apps.MainConfig',
+]
+##############################################################################
+
+31.3. Базовый шаблон.
+
+Создадим директории в пакете приложения под базовый шаблон и под таблицу стлей:
+
+    bboard/main/templates/layout
+    bboard/main/static/main
+
+
+Установим фреймворк для работы с css (Bootstrap 4):
+
+    pip install django-bootstrap4
+
+
+Добавим в список зарегистрированных приложений программное ядро библиотеки django-bootstrap4:
+
+/bboard/bboard/settings.py
+##############################################################################
+INSTALLED_APPS = [
+    ...
+    'django.contrib.staticfiles',
+    'main.apps.MainConfig',
+    'bootstrap4',
+]
+##############################################################################
+
+
+Напишем базовый шаблон, весьма великий и сложный:
+
+/bboard/main/templates/layout/basic.html
+##############################################################################
+{% load bootstrap4 %}
+{% load static %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="vievport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>{% block title %}Главная{% endblock %} - Доска объявлений</title> 
+    {% bootstrap_css %}
+    <link rel="stylesheet" type="text/css" href="{% static 'main/style.css' %}">
+    {% bootstrap_javascript jquery='slim' %}
+  </head>
+  <body class="container-fluid">
+    <header class="mb-4">
+      <h1 class="display-1 text-center">Объявления</h1>
+    </header>
+    <div class="row">
+      <ul class="col nav justify-content-end border">
+        <li class="nav-item"><a class="nav-link" href="#">Регистрация</a></li>
+        <li class="nav-item-dropdown">
+            <a  class="nav-item-dropdown-toggle" 
+                data-toggle="dropdown" 
+                href="#" role="button" 
+                aria-haspopup="true" 
+                aria-expanded="false">
+                Профиль </a>
+            <div class="dropdown-menu">
+                <a class="dropdown-item" href="#">Мои объявления</a>
+                <a class="dropdown-item" href="#">Изменить личные данные</a>
+                <a class="dropdown-item" href="#">Изменить пароль</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="#">Выйти</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="#">Удалить</a>
+            </div>
+        </li>
+        <li class="nav-item"><a class="nav-link" href="#">Вход</a></li>
+      </ul>
+    </div>
+    <div class="row">
+        <nav class="col-md-auto nav flex-column border">
+            <a class="nav-link root" href="{% url 'main:index' %}">Главная</a>
+            <span class="nav-link root font-weight-bold">Недвижимость</span>
+            <a class="nav-link" href="#">Жилье</a>
+            <a class="nav-link" href="#">Склады</a>
+            <a class="nav-link" href="#">Гаражи</a>
+            <span class="nav-link root font-weight-bold">Транспорт</span>
+            <a class="nav-link" href="#">Легковой</a>
+            <a class="nav-link" href="#">Грузовой</a>
+        </nav>
+        <section class="col border py-2">
+            {% bootstrap_messages %}
+            {% block_content %}
+            {% endblock %}
+        </section>
+    </div>
+    <footer class="mt-3">
+        <p class="text-right font-italic">&copy; читатели.</p>
+    </footer>
+  </body>
+</html>
+##############################################################################
+
+
+Перепечатывать объяснения по тегам и параметрам не буду, буду углублятся в DRF, не в шаблоны. Из важного - будем использовать сокращенную редакцию jQuery - slim для работы раскрывающегося меню.
+
+
+Создадим таблицу стилей:
+
+/bboard/main/static/main/style.css
+##############################################################################
+header h1 {
+  background: url("bg.jpg") left / auto 100% no-repeat, url("bg.jpg") right / auto 100% no-repeat;
+}
+
+.root{
+  font-size: larger;
+}
+##############################################################################
+
+Нужно изображение из интернета, для вывода его слева и справа. Сохранить в директории /static/main под имемем bg.jpg
+
+
+31.4. Главная веб-страница.
+
+Минмалистичная, чтобы удостовериться в работе сайта.
+
+Простейший контроллер:
+
+/bboard/main/views.py
+##############################################################################
+from django.shortcuts import render
+
+def index(request):
+    return render(request, 'main/index.html')
+##############################################################################
+
+
+Создадим директорию под шаблоны страниц приложения и создадим шаблон главной странички:
+
+/bboard/main/templates/main/index.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% block content %}
+<h2>Последние 10 объявлений</h2>
+{% endblock %}
+##############################################################################
+
+
+Пропишем маршруты, заодно сделаем так, чтобы статические файлы не кэшировалсь браузером, ведь работа над таблицей стилей еще не закончена.
+
+Маршруты уровня всего проекта:
+
+/bboard/bboard/urls.py
+##############################################################################
+from django.contrib import admin
+from django.urls import path, include
+from django.conf import settings
+from django.contrib.staticfiles.views import serve
+from django.views.decorators.cache import never_cache
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', include('main.urls')),
+]
+
+if settings.DEBUG:
+    urlpatterns.append(path('static/<path:path>', never_cache(serve)))
+##############################################################################
+
+
+Приложение main - корневое. 
+
+Маршруты уровня приложения:
+
+/bboard/main/urls.py
+##############################################################################
+from django.urls import path
+from .views import index
+
+app_name = 'main'
+url_patterns = [
+        path('', index, name='index'),
+]
+##############################################################################
+
+
+Сохраним всё и запустим отладочный веб-сервер с отключенной обработкой статических файлов:
+
+    ./manage.py runserver --nostatic
+
+Ну, пара исправлений, вроде лишнего символа подчеркивания в теге block в шаблоне, легкого исправления css-стиля раскрывающегося списка профиля (чтобы не залезало окно с ссылками за текущую ширину экрана) и все запустилось. Правда кривовато выглядит слишком высоко поднятая ссылка на Профиль, постепенно разберусь с этим.
+
+
+31.5. Вспомогательные веб-страницы.
+
+Реализуем страничку с сведениями об правах разработчиков и об сайте в общем.
+
+Вместо отдельного маршрута и контроллера для каждой странички сделаем один маршрут и один контроллер, который и будет вывыодить все странички. Различаться они будут за счет какого либо идетификатора, передаваемого с URL-параметром. В качестве идентификатора будем использовать имя шаблона без пути и без расширения.
+
+Параметр будет называтся page, имя маршрута - other, контроллер-функция - ohter_page.
+
+/bboard/main/urls.py
+##############################################################################
+from .views import index, other_page
+
+app_name = 'main'
+urlpatterns = [
+        path('<str:page>/', other_page, name='other'),
+        path('', index, name='index'),
+]
+##############################################################################
+
+
+Контроллер-функция other_page:
+
+/bboard/main/views.py
+##############################################################################
+from django.shortcuts import render
+from django.http import HttpResponse, Http404
+from django.template import TemplateDoesNotExist
+from django.template.loader import get_template
+
+def index(request):
+    return render(request, 'main/index.html')
+
+def other_page(request, page):
+    try:
+        template = get_template('main/' + page + '.html')
+    except TemplateDoesNotExist:
+        raise Http404
+    return HttpResponse(template.render(request=request))
+##############################################################################
+
+
+
+Странице с сведениями об сайте и об разработчиках дадим имя about, код шаблона этой странички:
+
+/bboard/main/templates/main/about.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% block title %}О сайте{% endblock %}
+
+{% block content %}
+<h2>О сайте</h2>
+<p>Сайт для публикации обявлений об продаже, разбитых на рубрики</p>
+<p>Все права принадлежат читателям книги &laquo;Django 3.0&raquo;.</p>
+{% endblock %}
+##############################################################################
+
+
+Добавим в левую панель навигации базового шаблона ссылку на эту страничку:
+
+/bboard/main/templates/layout/basic.html
+##############################################################################
+        <nav class="col-md-auto nav flex-column border">
+            ...
+            </br>
+            <a class="nav-link root" href="{% url 'main:other' page='about' %}">О сайте</a>
+        </nav>
+##############################################################################
+
+Отлично, все работает.
+
+
+
+
+
+Глава 32. Работа с пользователями и разграничение доступа.
+
+Займемся инструментами для работы с пользователями и разграничения доступа. Создадим странички входа, выхода, регистрации, активации, странички пользовательского профиля, для смены данных об пользователе, смены его пароля и удаления профиля.
+
+
+32.1. Модель пользователя.
+
+Стандартная модель User не подходит - нам нужно хранить доп.данные об пользователе. Создадим новую модель, унаследованную от абстрактной AbstractUser, объвленной в django.contrib.auth. В модели будет два поля, одно сигнализирует об том, прошел ли пользователь процедуру активации, второе сигнализирует об желании или нежелании пользователя получать уведомления об новых комментариях. Укажем сразу эту модель, как модель пользователя, используемую подсистемой разграничения доступа Django.
+
+/bboard/main/models.py
+##############################################################################
+from django.db import models
+from django.contrib.auth.models import AbstractUser
+
+class AdvUser(AbstractUser):
+    is_acitvated = models.BooleanField(default=True, db_index=True, verbose_name='Прошел активацию')
+    send_messages = models.BooleanField(default=True, verbose_name='Слать сообщения об новых комментариях')
+
+    class Meta(AbstractUser.Meta):
+        pass
+##############################################################################
+
+
+Указание новой модели пользователя в подсистеме разграничения доступа через простое внесение в файл настроек пакета конфигурации.
+
+/bboard/bboard/settings.py
+##############################################################################
+...
+# новая модель пользователя
+AUTH_USER_MODEL = 'main.AdvUser'
+##############################################################################
+
+
+Остановим сервер, выполним миграции:
+    ./manage.py makemigrations
+    ./manage.py migrate
+Миграции успешны.
+
+
+Создадим суперпользователя:
+    ./manage.py createsuperuser
+    name: vv
+    email: vv@vv.vv
+    password: vv
+Регистрация суперпользователя выполнена.
+
+
+Зарегистрируем модель нашего пользователя в том месте, где это делается - в модуле admin.py приложения (не в пакете конфигурации проекта). В этом же модуле объявляются классы-редакторы.
+
+/bboard/main/admin.py
+##############################################################################
+from django.contrib import admin
+from .models import AdvUser
+
+admin.site.register(AdvUser)
+##############################################################################
+
+
+Проверим, как все получилось - запустим сервер (опять без кэширования статических файлов), и попробуем зарегистрироваться в админке. Все работает, суперпользователь есть, можно даже удалить его попробовать.
+
+
+32.2. Основные веб-страницы: входа, профиля, выхода.
+
+Автор утверждает, что стоит следовать лучшим практикам и что мы будем им следовать. Ну, окей.
+
+
+32.2.1. Веб-страница входа.
+
+Для реализации входа, создадим подкласс LoginView и занесем в него все необходимые параметры.
+
+Пример такого контроллера ниже. Мы уточнили только имя шаблона, остальное - по умолчанию.
+
+/bboard/main/views.py
+##############################################################################
+class BBLoginView(LoginView):
+    """
+    Класс-контроллер входа на сайт. Все основные значения - по умолчанию.
+    """
+    template_name = '/main/login.html'
+##############################################################################
+
+
+Добавим маршрут на этот контроллер. Маршрут 'accounts/login/' - маршрут, на который Django по умолчанию отправляет гостя, при попытке получить доступ к закрытой от него странице. Есть вариант, не переопределять класс LoginView в новый с новым шаблоном, а использовать именно LoginView, но в списке маршрутов, в параметре вызова метода as_view() указать имя шаблона - path('accounts/login', LoginView.as_view(template_name='main/login.html'), name='login'). НО в этом случае, код контроллеров окажется разбросанным в двух местах - в urls.py и в views.py (имеется в виду, один контроллер полностью в urls.py, а остальные в views.py) а это очень неудобно в случае необходимости просмотра. Кроме того, возможно еще придется редактировать контроллер, и будет нужно переносить все в views.py
+
+/bboard/main/urls.py
+##############################################################################
+from .views import index, other_page, BBLoginView
+urlpatterns = [
+    ...
+    path('accounts/login/', BBLoginView.as_view(), name='login'),
+    ...
+]
+##############################################################################
+
+
+Напишем шаблон страницы входа. Стандартные поля ввода невелики, поэтому используем вариант 'horizontal' разметки из bootstrap4:
+
+/bboard/main/templates/main/login.html
+##############################################################################
+{% extends 'layout/basic.html' %}
+
+{% load bootstrap4 %}
+
+{% block title %}Вход{% endblock %}
+
+{% block content %}
+<h2>Вход</h2>
+{% if user.is_autenticated %}
+<p>Вы уже выполнили вход.</p>
+{% else %}
+<form method="post">
+  {% csrf_token %}
+  {% bootstrap_form form layout='horizontal' %}
+  <input type="hidden" name="next" value="{{ next }}">
+  {% buttons submit="Войти" %}{% endbuttons %}
+</form>
+{% endif %}
+{% endblock %}
+##############################################################################
+
+
+Внесем правки в код базового шаблона. Конкретно, в участке кода, создающего пункт Вход и пункт с раскрывающмися меню Профиль (горизональная полоса навигации, верхняя часть страницы). В этом новом варианте, если пользователь зарегистрирован(user.is_authenticated == True), то видит блок своего профиля. Если не зарегистрирован (блок кода else), то видит только ссылку на Вход. Проверил на уже имеющемся суперпользователе - да, работает:
+
+/bboard/main/templates/laoyut/basic.html
+##############################################################################
+        ...
+        <div class="row">
+            <ul class="col nav justify-content-end border">
+                <li class="nav-item"><a class="nav-link" href="#">Регистрация</a></li>
+                {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-item dropdown-toggle" 
+                            data-toggle="dropdown" 
+                            href="#" 
+                            role="button" 
+                            aria-haspopup="true" 
+                            aria-expanded="false">Профиль</a>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item" href="#">Мои объявления</a>
+                            <a class="dropdown-item" href="#">Изменить личные данные</a>
+                            <a class="dropdown-item" href="#">Изменить пароль</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="#">Выйти</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="#">Удалить</a>
+                        </div>
+                    </li>
+                {% else %}
+                    <li class="nav-item"><a class="nav-link" href="#">Вход</a></li>
+                {% endif %}
+            </ul>
+        </div>
+        ...
+##############################################################################
+
+
+Привяжем к кнопке Вход ссылку на контроллер входа:
+
+/bboard/main/templates/basic.html
+##############################################################################
+...
+{% else %}
+    <li class="nav-item"><a class="nav-link" href="{% url 'main:login' %}">Вход</a></li>
+{% endif %}
+...
+##############################################################################
+
+
+Уже можно регистрироваться по нажатию на вход, но пока еще нет нужных страничек профиля и выхода, без них либо ошибка, либо неудобно с выходом.
+
+32.2.2. Веб-страница пользовательского профиля.
+
+Контроллер страницы профиля реализуем в виде функции profile(). Так как профиль может быть доступен только зарегистрированным пользователям, то нужно пометить данный контроллер декоратором @login_require. 
+
+/bboard/main/views.py
+##############################################################################
+@login_required
+def profile(request):
+    return render(request, 'main/profile.html')
+##############################################################################
+
+
+Добавим маршрут на этот контроллер. Маршрут 'accounts/profile' - это путь по умолчанию, используемый Django для перенаправления после выполнения аутентификации:
+
+/bboard/main/urls.py
+##############################################################################
+from .views import index, other_page, BBLoginView, profile
+
+app_name = 'main'
+
+urlpatterns = [
+    ...
+    path('accounts/profile', profile, name='profile'),
+    ...
+]
+##############################################################################
+
+
+Сформируем шаблон странички профиля. В дальнейшем, вместо вывода простой строки будет выводиться список объявлений, созданных пользователем.
+
+/bboard/main/templates/main/profile.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% block title %}Профиль пользвателя{% endblock %}
+
+{% block content %}
+<h2>Профиль пользователя {{ user.username }}</h2>
+{% if user.first_name and user.last_name %}
+    <p>Здравствуйте, {{ user.first_name }} {{ user.last_name }}!</p>
+{% else %}
+    <p>Здравствуйте!</p>
+{% endif %}
+<h3>Ваши объявления</h3>
+{% endblock %}
+##############################################################################
+    
+
+Добавим в код базового шаблона путь на этот контроллер:
+
+/bboard/main/templates/layout.basic
+##############################################################################
+    ...
+    <a class="dropdown-item" href="{% url 'main:profile' %}">Мои объявления</a>
+    ...
+##############################################################################
+
+
+32.2.3. Веб-страница выхода.
+
+Контроллер выхода реализуем классом BBLogoutView, производным от LogoutView. Примесь LoginRequiredMixin обеспечивает доступ к странице выхода только для зарегистрированных пользователей.
+
+/bboard/main/views.py
+##############################################################################
+from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.mixins import LoginRequiredMixin
+...
+class BBLogoutView(LoginRequiredMixin, LogoutView):
+    template_name = 'main/logout.html'
+##############################################################################
+
+
+Маршрут к этому контроллеру:
+
+/bboard/main/urls.py
+##############################################################################
+from .views import index, other_page, BBLoginView, profile, BBLogoutView
+    ...
+    path('accounts/logout/', BBLogoutView.as_view(), name='logout'),
+    ...
+##############################################################################
+
+
+Шаблон страницы успешного выхода:
+
+/bboard/main/templates/main/logout.html
+##############################################################################
+{% extends "laoyout/basic.html" %}
+
+{% block title %}Выход{% endblock %}
+
+{% block content %}
+<h2>Выход</h2>
+<p>Вы успешно вышли с сайта.</p>
+{% endblock %}
+##############################################################################
+
+
+Ссылка на страничку выхода в базовом шаблоне:
+
+/bboard/main/templates/layout/basic.html
+##############################################################################
+    ...
+    <a class="dropdown-item" href="{% url 'main:logout' %}">Выйти</a>
+    ...
+##############################################################################
+
+
+32.3. Веб-страницы правки личных данных пользователя.
+
+32.3.1. Веб-страница правки основных сведений.
+
+На этой странице можно сменить имя(логин), email, реальные имя и фамилию, флаг желания получать уведомления об комментариях к объявлению. Адрес почты обязателен к заполнению.
+
+Объявим форму ChangeUserInfoForm, связанную с моделью AdvUser, предназначенную для ввода основных данных. Большая часть полей не изменяются, поэтому можно их объявить быстрым способом. Полю email нужно добавить необходимость быть заполненым, поэтому его объявляем полным способом.
+
+/bboard/main/forms.py
+##############################################################################
+from django import forms
+from .models import AdvUser
+
+
+class ChangeUserInfoForm(forms.ModelForm):
+    email = forms.EmailField(required=True, label='Адрес электронной почты')
+
+    class Meta:
+        model = AdvUser
+        fields = ('username', 'email', 'first_name', 'last_name', 'send_messages')
+##############################################################################
+
+
+Контроллер страницы правки основных данных должен выполнять правку модели, напишем его на базе высокоуровневого UpdateView. Получим класс ChangeUserInfoView. В процессе работы, этот контроллер должен извлечь из модели AdvUser запись, представляющую текущего пользователя, для чего ему нужно получить предварительно ключ текущего пользователя. Получить его можно из объекта текущего пользователя, хранящегося в атрибуте user объекта запроса.
+
+Наилучшее место для получения ключа текущего пользователя - метод setup(), наследуемый вообще всеми контроллерами от суперкласса View. Этот метод выполняется в самом начале исполнения класса-контроллера и получает объект запроса в качестве одного из параметра. В переопределенном методе setup(), мы извлечем ключ пользователя и сохраним его в атрибуте user_id.
+
+Извлечение исправляемой записи выполняем в методе get_object(), унаследованном от примеси SingleObjectMixin. В переопределенном методе нужно учесть, что набор записей из которого выбирать одну конкретную может быть передан, а может быть и не передан, в последнем случае нужно получить этот набор вручную, с помощью get_queryset().
+
+Кроме того, в суперклассах есть примесь LoginRequireMixin, запрещающая гостям доступ к этому контроллеру и примесь SuccessMessageMixin, которая применяется для вывода всплывающих сообщений об успешном выполнении операции (будет хотя бы небольшая польза от вставленных в basic.html кусков кода, выводящих всплывающие сообщенияо).
+
+/bboard/main/views.py
+##############################################################################
+from django.views.generic.edit import UpdateView
+from django.contrib.messages.views import SuccessMessageMixin
+from django.urls import reverse_lazy
+from django.shortcuts import get_object_or_404
+
+
+class ChangeUserInfoView(SuccessMessageMixin, LoginRequiredMixin, UpdateView):
+    model = AdvUser
+    template_name = 'main/change_user_info.html'
+    form_class = ChangeUserInfoForm
+    success_url = reverse_lazy('main:profile')
+    success_message = 'Данные пользователя изменены'
+
+    def setup(self, request, *args, **kwargs):
+        self.user_id = request.user.pk
+        return super().setup(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        if not queryset:
+            queryset = self.get_queryset()
+        return get_object_or_404(queryset, pk=self.user_id)
+##############################################################################
+
+
+Маршрут на этот контроллер редактирования личных данных:
+
+/bboard/main/urls.py
+##############################################################################
+from .views import index, other_page, BBLoginView, profile, BBLogoutView, ChangeUserInfoView
+
+    ...
+    path('accounts/profile/change/', ChangeUserInfoView.as_view(), name='profile_change'),
+    ...
+##############################################################################
+
+
+Код шаблона странички редактирования данных пользователя:
+
+/bboard/main/templates/main/change_user_info.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% load bootstrap4 %}
+
+{% block title %}Правка личных данных пользователя{% endblock %}
+
+{% block content %}
+<h2>Правка личных данных пользователя {{ user.username }}</h2>
+<form method="post">
+    {% csrf_token %}
+    {% bootstrap_form form layout='horizontal' %}
+    {% buttons submit='Сохранить' %}{% endbuttons %}
+</form>
+{% endblock %}
+##############################################################################
+
+
+Подправим код базового шаблона - вставим ссылку на эту страничку:
+    ...
+    <a class="dropdown-item" href="{% url 'main:profile_change' %}">Изменить личные данные</a>
+    ...
+
+
+32.3.2. Веб-страничка правки пароля.
+
+Контроллер сделаем производным от PasswordChangeView, который реализует смену пароля. 
+
+/bboard/main/views.py
+##############################################################################
+from django.contrib.auth.views import PasswordChangeView
+
+class BBPasswordChangeView( SuccessMessageMixin, LoginRequiredMixin, PasswordChangeView):
+    """
+    Страничка смены пароля пользователя
+    """
+    template_name = 'main/password_change.html'
+    success_url = reverse_lazy('main:profile')
+    success_message = 'Пароль пользователя изменен'
+##############################################################################
+
+
+Добавим маршрут к этому контроллеру:
+
+/bboard/main/urls.py
+##############################################################################
+urlpatterns = [
+    ...
+    path('accounts/password/change/', BBPasswordChangeView.as_view(), name='password_change'),
+    ...
+    ]
+##############################################################################
+
+
+Шаблон смены страницы:
+
+/bboard/main/templates/main/password_change.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% load bootstrap4 %}
+
+{% block title %}Смена пароля{% endblock %}
+
+{% block content %}
+<h2>Смена пароля пользователя {{ user.username }}</h2>
+<form method="post">
+    {% csrf_token %}
+    {% bootstrap_form layout='horizontal' %}
+    {% buttons submit='Смена пароля' %}{% endbuttons %}
+</form>
+{% endblock %}
+##############################################################################
+
+
+Отредактируем код базового шаблона:
+    ...
+    <a class="dropdown-item" href="{% url 'main:password_change' %}">Изменить пароль</a>
+    ...
+    
+Сменил ради теста пароль на vvvvvvvv11.
+
+
+32.4. Веб-страницы регистрации и активации пользователей.
+
+32.4.1. Веб-страницы регистрации нового пользователя.
+
+Напишем форму для ввода сведений об новом пользователе, контроллеры и шаблоны для страниц непосредственно регистрации и уведомления об успешной регистрации.
+
+Для отправки письма об необходимости активации объявим свой сигнал user_registered, принимающий единственным параметром instance объект вновь созданного пользователя. Сигнал объявим в модуле apps.py - так как он выполняется при инициализации приложения и является идеальным местом для записи кода, объявляющего сигналы.
+
+
+32.4.1.1. Форма для занесения сведений об новом пользователе.
+
+Комбинируем быстрое и полное объявление полей - полное для полей emial (необходим к заполениню), и password (чтобы настроить информирующие записи). Под пароль - два поля, чтобы не ошибиться при вводе.
+
+У перового поля пароля поясняющая надпись - объединенный текст с требованиями к вводимому паролю, чтобы пользователь сразу понял, как нужно заполнять (какие требования). 
+
+В методе clean_password1 выполняем валидацию пароля, второй пароль проверять необязательно, он должен быть точно такой же.
+
+В переопределенном методе clean(), проверяем, совпадают ли оба введеных пароля, эта проверка будет проведена после валидации пароля из первого поля.
+
+В переопределенном методе save() при сохранении нового пользователя обнуляем флаги is_active (признак, является ли пользователь активным) и is_acitvated (признак, выполнил ли пользователь процедуру активации) - это нужно чтобы сообщить фреймворку, что пользователь еще не может выполнить вход на сайт. Далее сохраняем в записи закодированный пароль и отправляем сигнал user_registered, чтобы отослать пользователю письмо с требованием активации.
+
+
+/bboard/main/forms.py
+##############################################################################
+# импорты для формы редактирования данных пользователя, обшие импорты
+from django import forms
+from .models import AdvUser
+
+# импорты для формы регистрации нового пользователя
+from django.contrib.auth import password_validation
+from django.core.exceptions import ValidationError
+from .apps import user_registered
+
+class RegisterUserForm(forms.ModelForm):
+    """
+    Форма регистрации нового пользователя
+    """
+    email = forms.EmailField(required=True, lagel='Адрес электронной почты')
+    password1 = forms.CharField(
+            label='Пароль',
+            widget=forms.PasswordInput,
+            help_text=password_validation.password_validators_help_text_html())
+    password2 = forms.CharField(
+            label='Пароль(повторно)',
+            widget=forms.PasswordInput,
+            help_text='Введите тот же самый пароль еще раз для проверки')
+
+
+    def clean_password1(self):
+        password1 = self.cleaned_data['password1']
+        if password1:
+            password_validation.validate_password(password1)
+        return password1
+
+
+    def clean(self):
+        super().clean()
+        password1 = self.cleaned_data['password1']
+        password2 = self.cleaned_data['password2']
+        if password1 and password2 and password1 != password2:
+            errors = {'password2': ValidationError('Введенные пароли не совпадают', code='password_mismatch')}
+            raise ValidationError(errors)
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data['password'])
+        user.is_active = False
+        user.is_activated = False
+        if commit:
+            user.save()
+        user_registered.send(RegisterUserForm, instance=user)
+        return user
+
+    class Meta:
+        model = AdvUser
+        fields = ('username', 'email', 'password1', 'password2', 
+                'first_name', 'last_name', 'send_messages')
+
+##############################################################################
+
+
+34.4.1.2. Средства для регистрации пользователя.
+
+Это две странички - одна с веб-формой для ввода данных об регистрирующемся пользователе, вторая - сообщение об успешной регистрации и отправке письма для подтверждения.
+
+Контроллер, регистрирующий пользователя сделаем производным от класса CreateView, назовем его RegisterUserView, контороллер вывода странички подтверждения из-за простоты сделаем производным от TemplateView:
+
+/bboard/main/views.py
+##############################################################################
+# импорты для странички регистрации нового пользователя
+from django.views.generic.edit import CreateView
+from .forms import RegisterUserForm
+
+# импорт для странички, подтверждающей регистрацию и отправку письма
+from django.views.generic.base import TemplateView
+
+
+class RegisterUserView(CreateView):
+    """
+    Страничка регистрации нового пользователя.
+    Перенпаравление на страничку, подтверждающую регистрацию и 
+    уведомляющую об отправке письма.
+    """
+    model = AdvUser
+    template_name = 'main/register_user.html'
+    form_class = RegisterUserForm
+    success_url = reverse_lazy('main:register_done')
+
+
+class RegisterDoneView(TemplateView):
+    """
+    Страничка, подтверждающая регистрацию и уведомляющая об отправке 
+    email с кодом подтверждения.
+    """
+    template_name = 'main/regiser_done.html'
+##############################################################################
+
+
+Два маршрута к этим контроллерам:
+
+/bboard/main/urls.py
+##############################################################################
+    ...
+    path('accounts/register/done/', RegisterDoneView.as_view(), name='register_done'),
+    path('accounts/register/', RegisterUserView.as_view(), name='register'),
+    ...
+##############################################################################
+
+
+Шаблон странички регистрации:
+
+/bboard/main/templates/main/register_user.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% load bootstrap4 %}
+
+{% block title %}Регистрация{% endblock %}
+
+{% block content %}
+
+<h2>Регистрация нового пользователя</h2>
+<form method="post">
+    {% csrf_token %}
+    {% bootstrap_form form layout='horizontal' %}
+    {% buttons submit='Зарегистрироваться' %}{% endbuttons %}
+</form>
+{% endblock %}
+##############################################################################
+
+
+Шаблон странички информирования об регистрации и отправленном письме.
+
+/bboard/main/templates/main/regiser_done.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% block title %}Регистрация завершена{% endblock %}
+
+{% block content %}
+<h2>Регистрация</h2>
+<p>Регистрация пользователя завершена.</p>
+<p>На адрес электронной почты, указанный пользователем, выслано письмо для активации.</p>
+{% endblock %}
+##############################################################################
+
+
+Отредактируем базовый шаблон, для вывода ссылки на страничку регистрации:
+
+    ...
+    <li class="nav-item"><a class="nav-link" href="{% url 'main:register' %}">Регистрация</a></li>
+    ...
+
+
+32.4.1.3. Средства для отправки писем с требованиями активации.
+
+Непосредственно, рассылку писем будет выполнять функция send_activation_notification() из модуля utilties.py (будет создан чуть позже, как и чуть поже будет написана эта функция). Кроме того, эта функция пригодится, когда будем писать редактор для модели AdvUser.
+
+Запишем в apps.py код, обяъвляющий сигнал user_registered и привзязывающий к этму сигналу обработчик:
+
+/bboard/main/apps.py
+##############################################################################
+from django.apps import AppConfig
+from django.dispatch import Signal
+from .utilities import send_activation_notification
+
+
+class MainConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'main'
+    verbose_name = 'Доска объявлений'
+
+# user_regidstered = Signal(providing_args=['instance'])
+# странно, в нашем варианте Django такого ключевого параметра (providing_args) нет...
+
+user_regidstered = Signal(use_caching=['instance'])
+
+def user_registered_dispatcher(sender, **kwargs):
+    send_activation_notification(kwargs['instance'])
+##############################################################################
+
+
+Создадим модуль utilities.py, занесем в него объявление функции send_activation_notification(). Для формироваиния интернет-адреса подтверждения понадобится домен нашего сайта и некоторое значение, идентифицирующее нашего пользователя, устойчивое к попыткам его подделать. 
+
+Домен можно извлечь из списка разрешенных доменов (ALLOWED_HOSTS настроек проекта) - выберем самый первый домен, если список пустой, то задействуем адрес отладочного сервера. В качестве уникального и стойкого к подделке идентификатора используем имя пользователя, защищенное цифровой подписью. Создание цифровой подписи выполняем с помощью класса Signer. 
+
+Текст темы и тела письма выполняется с помощью шаблонов /templates/email/activation_letter_subject.txt и templates/email/activation_letter_body.txt. Их код ниже.
+
+
+/bboard/main/utilities.py
+##############################################################################
+from django.template.loader import render_to_string
+from django.core.signing import Signer
+
+from bboard.settings import ALLOWED_HOSTS
+
+signer = Signer()
+
+def send_activation_notification(user):
+    if ALLOWED_HOSTS:
+        host = 'http://' + ALLOWED_HOSTS[0]
+    else:
+        host = 'http://localhost:8000'
+
+    context = {'user': user, 'host': host, 'sign': signer.sign(user.username)}
+    subject = render_to_string('email/activation_letter_subject.txt', context)
+    body_text = render_to_string('email/activation_letter_body.txt', context)
+    user.email_user(subject, body_text)
+##############################################################################
+
+
+/bboard/main/templates/email/activation_letter_subject.txt
+##############################################################################
+Активация пользователя {{ user.username }}
+##############################################################################
+
+
+/bboard/main/templates/activation_letter_body.txt
+##############################################################################
+Уважаемый пользователь {{ user.username }}!
+
+Вы зарегистрировались на сайте "Доска объявлений".
+Вам необходимо выполнить активацию, чтобы подтвердить свою личность.
+Для этого пройдите, пожалуйста, по ссылке
+
+{{ host }}{% url 'main:registered_activate' sign=sign %}
+
+До свидания!
+
+С уважением, администрация сайта "Доска объявлений".
+##############################################################################
+
+
+32.4.2. Веб-страницы активации пользователя.
+
+
+Чтобы реализовать активацию нового пользователя, мы напишем один контроллер и три шаблона - об успешной активации, об том, что активация уже выполнена и об том, что цифровая подпись у идентификатора пользователя, полученного в составе интернет-адреса скомпроментирована.
+
+Контроллер активации нового пользователя. Подписанный идентификатор пользователя, передвавемый в составе интернет-адреса получаем с параметром sign. Далее, извлекаем из него имя пользователя, ищем пользователя с этим именем, делаем его активным (присвоив значения True в поля is_active и is_activated модели) и выводим страницу об успешной активации. Или соответственно страничку информирования об уже выполненной активации или страничку об компроментации пользователя.
+
+Для обработки подписанного значения используем экземпляр класса Signer, созданный в модуле utilities.py и хранящийся в переменной signer - для экономии оперативной памяти. 
+
+/bboard/main/views.py
+##############################################################################
+def user_activate(request, sign):
+    """
+    Страничка активации пользователя, привязка трех шаблонов - 
+    успех активации, активация выполнена ранее, ссылка скомпроментирована.
+    """
+    try:
+        username = signer.unsign(sign)
+    except BadSignature:
+        return render(request, 'main/bad_signature.html')
+    user = get_object_or_404(AdvUser, username=username)
+    if user.is_acitvated:
+        template = 'main/user_is_activated.html'
+    else:
+        template = 'main/activation_done.html'
+        user.is_active = True
+        user.is_activated = True
+        user.save()
+    return render(request, template)
+##############################################################################
+
+
+Маршрут на контроллер user_activate():
+
+/bboard/main/urls.py
+##############################################################################
+    ...
+    path('accounts/register/activate/<str:sign>', user_activate.as_view(), name='register_activate'),
+    ...
+##############################################################################
+
+
+Код шаблона об успешной активации:
+
+/bboard/main/tempates/main/activation_done.html
+##############################################################################
+{% extends "layout.html" %}
+
+{% block title %}Активация выполнена{% endblock %}
+
+{% block content %}
+<h2>Активация</h2>
+<p>Пользователь с таким именем успешно активирован.</p>
+<p><a href="{% url 'main:login' %}">Войти на сайт</a></p>
+{% endblock %}
+##############################################################################
+
+
+
+Код шаблона об неуспешной активации в связи с нарушением подписи:
+
+/bboard/main/tempates/main/bad_signature.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% block title %}Ошибка при активации{% endblock %}
+
+{% block content %}
+<h2>Активация</h2>
+<p>Активация пользоваетеля с таким именем прошла неудачно</p>
+<p><a href="{% url 'main:register' %}">Зарегистрироваться повторно.</a></p>
+{% endblock %}
+##############################################################################
+
+
+Код шаблона об уже выполненой ранее активации:
+
+/bboard/main/tempates/main/user_is_activation.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% block title %}Пользователь уже активирован{% endblock %}
+
+{% block content %}
+<h2>Активация</h2>
+<p>Пользователь с таким именем был активирован ранее.</p>
+<p><a href="{% url 'main:login' %}">Войти на сайт</a></p>
+{% endblock %}
+##############################################################################
+
+
+Еще нужно отредактировать базовый шаблон, указав ссылку на страничку регистрации. Хотя наверное, это было сделано выше, просто не сохранил:
+
+/bboard/main/tempaltes/layout/basic.html
+##############################################################################
+<li class="nav-item"><a class="nav-link" href="{% url 'main:register' %}">Регистрация</a></li>
+##############################################################################
+
+
+Чтобы протестировать отправку электронных писем, воспользуемся отладочным SMTP-сервером (подробнее см.25.4). Добавим в settings.py выражение, задающее TCP-порт 1025, который используется этим сервером по умолчанию:
+
+/bboard/bboard/settings.py
+##############################################################################
+...
+# TCP порт для отладочного smtp-сервера
+EMAIL_PORT = 1025
+...
+##############################################################################
+
+
+запустим отладочный smtp-сервер на 1025 порту, в новой вкладке консоли. Отладочный smtp-сервер, это просто модуль Python'a.
+    
+    python3 -m smtpd -n -c DebuggingServer localhost:1025
+    
+что то запустилось, но нет информирующих записей, буду считать, что запустилось.
+
+
+Для теста попробуем создать нового пользователя и потестировать.
+Куча ошибок, нужно сначала почитать про отладочный smtp-сервер, разд.25.4.
+
+короче, не приходит письмо подтверждения никуда, пробую активировать пару пользователей вручную, через суперпользователя. 
+
+создал два пользователя vv1, vv2 с паролями vvvvvvvv11, с email vv[1,2]@localhost, через суперпользователя активировал их, попробовал зайти - заходит на обоих. Письмо никуда не пришло.
+
+
+32.5. Веб-страница удаления пользователя.
+
+Контроллер удаления сделаем производным от класса DeleteView. Использованы программные приемы как в контроллере ChangeUserInfoView - в переопрделенном setup() сохранили ключ текущего пользователя, в переопределенном get_object() отыскали по этому ключу пользователя, подлежащего удалению. Перед удалением пользователя нужно выполнить выход, что и было сделано в переопределенном методе post(). В этом же методе создано всплывыющее уведомление об успешном удалении пользователя.
+
+/bboard/main/views.py
+##############################################################################
+from django.shortcuts import render
+from django.http import HttpResponse, Http404
+from django.template import TemplateDoesNotExist
+from django.template.loader import get_template
+from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
+
+#импорты обновления данных пользователя
+from django.views.generic.edit import UpdateView
+from django.contrib.messages.views import SuccessMessageMixin
+from django.urls import reverse_lazy
+from django.shortcuts import get_object_or_404
+from .models import AdvUser
+from .forms import ChangeUserInfoForm
+
+# импорт для странички смены пароля
+from django.contrib.auth.views import PasswordChangeView
+
+# импорты для странички регистрации нового пользователя
+from django.views.generic.edit import CreateView
+from .forms import RegisterUserForm
+
+# импорт для странички, подтверждающей регистрацию и отправку письма
+from django.views.generic.base import TemplateView
+
+# импорт для страничек активации аккаунта, контроллер user_acitvate
+from django.core.signing import BadSignature
+from .utilities import signer
+
+# импорты для странички удаления аккаунта пользователя, DeleteUserView
+from django.views.generic.edit import DeleteView
+from django.contrib.auth import logout
+from django.contrib import messages
+
+def index(request):
+    """
+    Главная страничка.
+    """
+    return render(request, 'main/index.html')
+
+
+def other_page(request, page):
+    """
+    Контроллер многих страничек с объявлениями. 
+    Адрес странички (имя шаблона странички) формируется на основе 
+    URL-параметра page.
+    """
+    try:
+        template = get_template('main/' + page + '.html')
+    except TemplateDoesNotExist:
+        raise Http404
+    return HttpResponse(template.render(request=request))
+
+
+class BBLoginView(LoginView):
+    """
+    Класс-контроллер входа на сайт. Все основные значения - по умолчанию.
+    """
+    template_name = 'main/login.html'
+
+
+@login_required
+def profile(request):
+    """
+    Страничка профиля
+    """
+    return render(request, 'main/profile.html')
+
+
+class BBLogoutView(LoginRequiredMixin, LogoutView):
+    """
+    Страничка успешного выхода
+    """
+    template_name = 'main/logout.html'
+
+
+class ChangeUserInfoView(SuccessMessageMixin, LoginRequiredMixin, UpdateView):
+    """
+    Страничка смены личных данных пользователя (кроме пароля)
+    """
+    model = AdvUser
+    template_name = 'main/change_user_info.html'
+    form_class = ChangeUserInfoForm
+    success_url = reverse_lazy('main:profile')
+    success_message = 'Данные пользователя изменены'
+
+    def setup(self, request, *args, **kwargs):
+        self.user_id = request.user.pk
+        return super().setup(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        if not queryset:
+            queryset = self.get_queryset()
+        return get_object_or_404(queryset, pk=self.user_id)
+
+
+class BBPasswordChangeView( SuccessMessageMixin, LoginRequiredMixin, PasswordChangeView):
+    """
+    Страничка смены пароля пользователя
+    """
+    template_name = 'main/password_change.html'
+    success_url = reverse_lazy('main:profile')
+    success_message = 'Пароль пользователя изменен'
+
+
+class RegisterUserView(CreateView):
+    """
+    Страничка регистрации нового пользователя.
+    Перенпаравление на страничку, подтверждающую регистрацию и 
+    уведомляющую об отправке письма.
+    """
+    model = AdvUser
+    template_name = 'main/register_user.html'
+    form_class = RegisterUserForm
+    success_url = reverse_lazy('main:register_done')
+
+
+class RegisterDoneView(TemplateView):
+    """
+    Страничка, подтверждающая регистрацию и уведомляющая об отправке 
+    email с кодом подтверждения.
+    """
+    template_name = 'main/register_done.html'
+
+
+def user_activate(request, sign):
+    """
+    Страничка активации пользователя, привязка трех шаблонов - 
+    успех активации, активация выполнена ранее, ссылка скомпроментирована.
+    """
+    try:
+        username = signer.unsign(sign)
+    except BadSignature:
+        return render(request, 'main/bad_signature.html')
+    user = get_object_or_404(AdvUser, username=username)
+    if user.is_acitvated:
+        template = 'main/user_is_activated.html'
+    else:
+        template = 'main/activation_done.html'
+        user.is_active = True
+        user.is_activated = True
+        user.save()
+    return render(request, template)
+
+
+class DeleteUserView(LoginRequiredMixin, DeleteView):
+    """
+    Удаление аккаунта пользователя
+    """
+    model = AdvUser
+    template_name = 'main/delete_user.html'
+    success_url = reverse_lazy('main:index')
+
+    def setup(self, request, *args, **kwargs):
+        self.user_id = request.user.pk
+        return super().setup(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        logout(request)
+        messages.add_message(request, messages.SUCCESS, 'Пользователь удален')
+        return super().post(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        if not queryset:
+            queryset = self.get_queryset()
+        return get_object_or_404(queryset, pk=self.user_id)
+##############################################################################
+
+
+Напишем маршрут на контроллер удаления:
+
+/bboard/main/urls.py
+##############################################################################
+    ...
+    path('accounts/profile/delete/', DeleteUserView.as_view(), name='profile_delete'),
+    ...
+##############################################################################
+
+
+Напишем шаблон странички для удаления пользователя:
+
+/bboard/main/templates/main/delete_user.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% load bootstrap4 %}
+
+{% block title %}Удаление пользователя{% endblock %}
+
+{% block content %}
+<h2>Удаление пользователя {{ object.username }}</h2>
+<form method="post">
+    {% csrf_token %}
+    {% buttons submit='Удалить' %}{% endbuttons %}
+</form>
+{% endblock %}
+##############################################################################
+
+
+Отредактируем базовый шаблон:
+##############################################################################
+<a class="dropdown-item" href="{% url 'main:profile_delete' %}">Удалить профиль</a>
+##############################################################################
+
+
+32.6. Инструменты для администрирования пользователей.
+
+Напишем редактор, с помощью которого администрация сайта будет работать с зарегистрированными пользователями. В него добавим возоможность фильтрации пользователей по именам, адресам электронной почты, настящим именам и фамилиям. Также реализуем вывод пользователей, уже выполнивших активацию, не выполнивших ее в течение трех дней и недели, и действие по отправке выбранным пользователям писем с требованием пройти активацию.
+
+Данный редактор добавит дополнительную функциональность к админке, добавив поле поиска, добавив возможные действия к списку всех пользователей, добавив фильтр к пользователям. Поиск из одной строки ввода выполняется сразу по нескольким полям - имя, email, настоящие имя и фамилия.
+
+Полный код класса редактора AdvUserAdmin. Он заменил собой весь код из модуля admin.py пакета приложения:
+
+В списке записей (list_display) указываем выводить строковое представление записи (__str__ - имя пользователя, как реализовано в модели AbstractUser), поле признака, выполнил ли пользователь активацию, временную отметку его регистрации. Таже разрешаем выполнять фильтрацию по полям имени, адреса почты, настоящих имени и фамилии.
+
+Класс NonactivatedFilter выполняет фильтрацию пользователей, не выполнивших активацию в течение трех дней и недели.
+
+Где то (вроде бы это класс AdvUserAdmin) мы явно указываем список полей (fields), которые должны выводиться в формах правки пользователей. Поля даты регистрации и последнего его входа на сайт (кортеж readonly_fields) делаем доступными только для чтения.
+
+Кроме того, регистрируем действие, которое разошлет пользователям письма с предписаниями выполнить активацию. Это действие реализовано функцией send_activation_notifications(), в ней мы перебираем всех выбранных пользователей, и для каждого, кто не выполнил активацию, вызываем функцию send_activation_notification(), из utilities.py, непосредственно производящую отправку писем.
+
+/bboard/main/admin.py
+##############################################################################
+import datetime
+
+from django.contrib import admin
+
+from .models import AdvUser
+from .utilities import send_activation_notification
+
+def send_activation_notifications(modeladmin, request, queryset):
+    """
+    Отправляет письма с требованием активации всем пользователям из списка.
+    """
+    for rec in queryset:
+        if not rec.is_activated:
+            send_activation_notification(rec)
+    modeladmin.message_user(request, 'Письма с требованиями отправлены')
+send_activation_notifications.short_description = 'Отправки писем с требованиями активации'
+
+
+class NonactivatedFilter(admin.SimpleListFilter):
+    """
+    Выборка (фильтрация) пользователей по признаку активации.
+    """
+    title = 'Прошли активацию'
+    parameter_name = 'actstate'
+
+    def lookups(self, request, model_admin):
+        return (
+                ('activated', 'Прошли'),
+                ('threedays', 'Не прошли более 3 дней'),
+                ('week', 'Не прошли более недели'),
+                )
+
+    def queryset(self, request, queryset):
+        val = self.value()
+        if val == 'acitvated':
+            return queryset.filter(
+                    is_active=True,
+                    is_activated=True
+                    )
+        elif val == 'threedays':
+            d = datetime.date.today() - datetime.timedelta(days=3)
+            return queryset.filter(
+                    is_active = False,
+                    is_activated = False,
+                    date_joined__date__lt = d
+                    )
+        elif val == 'week':
+            d = datetime.date.today() - datetime.timedelta(days=3)
+            return queryset.filter(
+                    is_active = False,
+                    is_activated = False,
+                    date_joined__date__lt = d
+                    )
+
+
+class AdvUserAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'is_activated', 'date_joined')
+    search_fields = ('username', 'email', 'first_name', 'last_name')
+    list_filter = (NonactivatedFilter,)
+    fields = (
+            ('username', 'email'),
+            ('first_name', 'last_name'),
+            ('send_messages', 'is_active', 'is_activated'),
+            ('is_staff', 'is_superuser'),
+            'groups',
+            'user_permissions',
+            ('last_login', 'date_joined'),
+            )
+    readonly_fields = ('last_login', 'date_joined')
+    actions = (send_activation_notifications,)
+
+
+# строка регистрации типов пользователей
+admin.site.register(AdvUser, AdvUserAdmin)
+##############################################################################
+
+
+Тут предлагается самостоятельно написать контроллер, маршрут, шаблон сброса пароля, но это сложновато (контроллер сложный), поэтому пока пропущу, нужно двигаться дальше.
+
+
+
+
+
+Глава 33. Рубрики.
+
+Реализуем двухуровневую структуру рубрик - общие рубрики верхнего уровня (надрубрики), вложенные в них рубрики нижнего уровня (подрубрики). Список рубрик будет выводиться в вертикальной панели навигации на каждой странице сайта.
+
+
+33.1. Модели рубрик.
+
+Напишем базовую модель, в которой будут храниться и надрубрики и подрубрики и две производные от нее прокси-модели - для надрубрик и для подрубрик.
+
+
+
+33.1.1. Базовая модель рубрик.
+
+Структура базовой модели - имя поля, тип поля, параметры поля, подробное описание поля:
+
+name - CharField - Длина 20 символов, индексированное - Название
+order - IntegerField - Значение по умолчанию 0, индексированное - Порядок
+super_rubric - ForeignKey - Необязательное, запрет каскадного удаления - Надрубрика
+
+Оснобенность поля super_rubric - связь создаваемая этим полем, устанваливается чуть позже и только с моделью надрубрик; поле заполняется, только если есть надрубрика для текущей рубрики - это значит что у надрубрик оно всегда будет пустым, соответственно поле необязательно к заполнению; обязательно нужно запретить каскадное удаление записей чтобы пользователь случайно не удалил надрубрику вместе с всеми подрубриками.
+
+Создадим саму модель рубрики. Какие то параметры модели задавать не будем, так как пользователи не будут работать с этой моделью:
+
+/bboard/main/models.py
+##############################################################################
+class Rubric(models.Model):
+    """
+    Базовая модель рубрик. В чистом виде не используется.
+    """
+    name = models.CharField(
+            max_length=20,
+            db_index=True,
+            unique=True,
+            verbose_name='Название'
+            )
+    order = models.SmallIntegerField(
+            default=0,
+            db_index=True,
+            verbose_name='Порядок'
+            )
+    super_rubric = models.ForeignKey(
+            'SuperRubric',
+            on_delete=models.PROTECT,
+            null=True,
+            blank=True,
+            verbose_name='Надрубрика'
+            )
+##############################################################################
+
+33.1.2. Модель надрубрик. 
+
+Объявим прокси-модель, производную от базовой Rubric, она не будет изменять набор объявленнх полей, но может изменять функциональность - она будет обрабатывать только надрубрики. Чтобы изменить состав изменяемых моделью записей нужно задать для нее свой диспетчер записей, который и укажет необходимые условия фильтрации.
+
+Условия фильтрации указываем в переопределенном методе get_queryset() класса диспетчера записей SuperRubricManager - он станет выбирать только записи с пустым полем super_rubric - то есть надрубрики. В самом классе модели SuperRubricManager в качестве основного, объвляем метод __str__ который станет генерировать строковое представление рубрики - ее название. Сортировку указываем сначала по возврастанию занчения порядка, а потом по названию.
+
+/bboard/main/models.py
+##############################################################################
+class SuperRubricManager(models.Manager):
+    """
+    Диспетчер записей модели надрубрик
+    """
+    def get_queryset(self):
+        return super().get_queryset().filter(super_rubric__isnull=True)
+
+class SuperRubric(Rubric):
+    """
+    Модель надрубрик.
+    """
+    object = SuperRubricManager()
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        proxy = True
+        ordering = ('order', 'name')
+        verbose_name = 'Надрубрика'
+        verbose_name_plural = 'Надрубрики'
+##############################################################################
+
+
+33.1.3. Модель подрубрик.
+
+Создадим ее аналогично модели надрубрик, диспетчер записей модели теперь будет выбирать лишь подрубрики. Диспетчер записей SubRubricManager будет выбирать лишь записи с непустым полем super_rubirc - т.е. подрубрики. Строковое представление, создаваемое моделью будет выполено в формате <название надрубрики> - <название подрубрики>. Сортировка записей - по порядку надрубрики, по названию надрубрики, по порядку подрубрики, по названию подрубрики.
+
+/bboard/main/models.py
+##############################################################################
+class SubRubricManager(models.Manager):
+    """
+    Диспетчер записей подрубрик.
+    """
+    def get_queryset(self):
+        return super().get_queryset().filter(super_rubric__isnull=False)
+
+
+class SubRubric(Rubric):
+    """
+    Модель подрубрик.
+    """
+    objects = SubRubricManager()
+
+    def __str__(self):
+        return '%s - %s' % (self.super_rubric.name, self.name)
+
+    class Meta:
+        proxy = True
+        ordering = ('super_rubric__order', 'super_rubric__name', 'order', 'name')
+        verbose_name = 'Подрубрика'
+        verbose_name_plural = 'Подрубрики'
+##############################################################################
+
+
+32.2. Инструменты для администрирования рубрик.
+
+Вся работа с надрубриками и подрубриками будет проводиться средствами административного сайта. Для надрубрик создадим новый редактор, чтобы пользователь, добавив надрубрику, сразу же мог заполнить ее подрубриками. Из формы для ввода и правки надрубрик нужно исключть поле надрубрик, оно там не нужно и только сбивает с толку.
+
+Не забываем, что код редакторов как и код, регистрирующий модели и редакторы в подсистеме административного сайта, должен записываться в модуль admin.py пакета приложения.
+
+Редактор надрубрик и встроенный редактор подрубрик:
+
+/bboard/main/admin.py
+##############################################################################
+class SubRubricInline(admin.TabularInline):
+    """
+    Встроенный в SuperRubricAdmin редактор подрубрик.
+    """
+    model = SubRubric
+
+
+class SuperRubricAdmin(admin.ModelAdmin):
+    """
+    Редактор надрубрик.
+    """
+    exclude = ('super_rubric')
+    inlines = (SubRubricInline,)
+
+
+# строка регистрации редакторов надрубрик и подрубрик
+admin.site.register(SuperRubric, SuperRubricAdmin)
+##############################################################################
+
+
+У подрубрик сделаем поле надрубрики (super_rubric) обязательным к заполнению - для этого объявим форму SubRubricForm в модуле forms.py. Мы убрали у раскрывающегося списка "пустой" пункт за счет присвоения параметру empty_label поля значения None - так мы дадим знать, что в это поле обязательно должно быть занесено значение.
+
+/bboard/main/forms.py
+##############################################################################
+# импорт для редакторов надрубрик и подрубрик
+from .models import SuperRubric, SubRubric
+
+class SubRubricForm(forms.ModelForm):
+    super_rubric = forms.ModelChoiceField(
+            queryset = SuperRubric.objects.all,
+            empty_label = None,
+            label = 'Надрубрика',
+            required = True,
+            )
+
+    class Meta:
+        model = SubRubric
+        fields = '__all__'
+##############################################################################
+
+
+Теперь нужно дополнить модуль admin.py редактором подрубрик:
+
+/bboard/main/admin.py
+##############################################################################
+# импорты для редакторов надрубрик и подрубрик
+from .models import SuperRubric, SubRubric
+from .forms import SubRubricForm
+
+class SubRubricAdmin(admin.ModelAdmin):
+    """
+    Редактор подрубрик.
+    """
+    form = SubRubricForm
+
+# строка регистрации редактора подрубрик
+admin.site.register(SubRubric, SubRubricAdmin)
+##############################################################################
+
+
+Сохраним, перезапустим сервер, попробуем создать несколько рубрик и подрубрик. Рубрики создаются, но очень интересно, что можно содать третий слой для подрубирик и наверное еще глубже, если выбрать в качестве надрубрики одну из уже имеющихся подрубрик. Хотя возможно в этом и цель - создать систему, которая позволяет делать вложения неограниченной глубины.
+
+
+33.3. Вывод списка рубрик в вертикальной панели навигации.
+
+Сначала необходимо поместить в состав контекста переменную, в которой хранится список подрубрик - именно на его основе мы будем формировать пункты навигации. Можно создавать переменную в каждом контроллере, но это очень трудоемко, поэтому объявим и зарегистрируем в проекте обработчик контекста, в котором и будет формироваться список подрубик.
+
+Установим, что список подрубрик будет помещаться в переменную rubrics контекста шаблона.
+
+Создадим в пакете приложения модуль middlewares.py и запишем в него код обрабточика контекста bboard_context_processor():
+
+/bboard/main/middlewares.py
+##############################################################################
+# Обработчик контекста
+
+from .models import SubRubric
+
+def bboard_context_processor(request):
+    """
+    Обработчик контекста, добавляющий во все запросы к шаблонам переменную
+    rubrics, содержащую список всех подрубрик. Нужен чтобы не передавать эту
+    переменную во всех контроллерах.
+    """
+    context = {}
+    context['rubrics'] = SubRubric.objects.all()
+    return context
+##############################################################################
+
+
+Зарегистрируем новый обработчик контекста в settings.py - просто добавим его в список к уже имеющимся.
+
+/bboard/bboard/settings.py
+##############################################################################
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+                'main.middlewares.bboard_context_processor',
+            ],
+        },
+    },
+]
+##############################################################################
+
+
+Еще пара подготовительных действий. 
+
+Добавим пустой контроллер-функцию в views.py. Он нужен чтобы прямо сейчас сформировать в панели навигации гиперссылки с правильными интернет-адресами. Чуть позже заменим этот контроллер-заглушку на нормальное:
+
+/bboard/main/views.py
+##############################################################################
+def by_rubric(request, pk):
+    """
+    Заглушка для панели навигации.
+    """
+    pass
+##############################################################################
+
+
+Добавим маршрут на этот контроллер. Важно поместить этот маршрут, до маршрута на контроллер other_page() - иначе маршрутизатор будет все маршруты с цифрой в url-параметре отправлять на other_page(), чего точно не нужно:
+
+/bboard/main/urls.py
+##############################################################################
+urlpatterns = [
+    path('<int:pk>/', by_rubric, name='by_rubric'),
+    path('<str:page>/', other_page, name='other'),
+    ...
+]
+##############################################################################
+
+
+Отредактируем базовый шаблон. Мы перебираем список подрубрик, хранящийся в переменной rubrics контекста шаблона (засунутый туда обработчиком контекста bboard_context_processor), и для каждой рубрики выводим:
+- если ключ связанной надрубрики изменился (то есть начали выводиться подрубрики из другой надрубрики), то выводим пункт с именем надрубрики
+- если мы пока еще в одной надрубрике, то выводим пункт-гиперссылку с именем подрубрики. 
+
+Пока подрубрики не выводят ничего полезного.
+
+/templates/layout/basic.html
+##############################################################################
+    ...
+    <a class="nav-link root" href="{% url 'main:index' %}">Главная</a>
+    {% for rubric in rubrics %}
+        {% ifchanged rubric.super_rubric.pk %}
+            <span class="nav-link root font-weight-bold">
+                {{ rubric.super_rubric.name }}
+            </span>
+        {% endifchanged %}
+        <a class="nav-link" href="{% url 'main:by_rubric' pk=rubric.pk %}">{{ rubric.name }}</a>
+        {% endfor %}
+    </br>
+    </br>
+    </br>
+    <a class="nav-link root" href="{% url 'main:other' page='about' %}">О сайте</a>
+    ...
+##############################################################################
+
+
+
+
+Глава 34. Объявления.
+
+Создадим страничку для просмотра объявлений, относящихся к выбранной рубрике с поддержкой пагинации и поиска, страницу сведений об выбранном объявлений, страницы для добавления, правки, удаления объявлений. Добавим вывод объявлений пользователя на страничке его профиля.
+
+
+34.1. Подготовка к обработке выгруженных файлов.
+
+К каждому объявлению прикрепляется одно основное изображение и неограниченное количество дополнительных. Для полноценной обработки файлов, выгруженных посетителями, Django нужны дополнительные библиотеки - Easy Thumbnails (создание миниаютр), djano-cleanup (удаляет выгруженные файлы после удаления хранящих их записей моделей), Pillow(обеспечивает поддержку графики, будет автоматически установлена при установке Easy Thumbnails). 
+
+    pip install easy-thumbnails
+    pip install django-cleanup
+
+Добавим программные ядра этих библиотек в список зарегистрированных в проекте - внесем их в INSTALLED_APPS модуля settings.py:
+
+    ...
+    INSTALLED_APPS = [
+        ...
+        'main.apps.MainConfig',
+        'bootstrap4',
+        'django-cleanup',
+        'easy-thumbinals',
+    ]
+    ...
+
+
+Для хранения всех выгруженных файлов содадим директорию media в директории проекта. В media создадим директорию thumbnails для хранения миниаютр.
+
+В модуле settings.py укажем путь к директории media и префикс для интернет-адресов выгруженных файлов:
+
+    # директория и интернет-адрес изображений и миниатюр объявлений
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+    MEDIA_URL = '/media/'
+
+
+И добавим настройки приложения easy_thumbnails. Зададим один пресет, выполняющий простое масштабирование до размеров в 96х96 пикселей. Кроме того, задали директорию, в которой будут храниться миниаютры:
+
+    # настройки приложения создания миниаютр easy_thumbnails
+    THUMBNAIL_BASEDIR = 'thumbnails'
+    THUMBNAIL_ALIASES = {
+            '': {
+                'default': {
+                    'size': (96, 96),
+                    'crop': 'scale',
+                    },
+                },
+            }
+
+Добавим в список маршрутов уровня проекта, маршрут для обработки выгруженных файлов:
+
+/bboard/bboard/urls.py
+##############################################################################
+# импорт для приложения содания миниатюр thumbnails
+from django.conf.urls.static import static
+
+urlpatterns = [
+    ...
+]
+
+if settings.DEBUG:
+    urlpatterns.append(path('static/<path:path>', never_cache(serve)))
+    # подключение миниатюр
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+##############################################################################
+
+
+34.2. Модели объявлений и дополнительных иллюстраций.
+
+Создадим две модели - одну для обявлений. вторую - для дополнительных иллюстраций.
+
+
+34.2.1. Модель объявлений.
+
+Будет называться Bb, ее структура (имя поля - тип поля - доп. параметры - описание):
+
+rubric - ForeignKey - Запрет каскадного удаления - Подрубрика
+title - CharField - Длина 40 симоволов - Название товара
+content - TextField - - Описание товара
+price - IntegerField - Значение по умолчанию 0 - Цена товара
+contacts - TextField - - Контакты
+image - ImageField - Необязательное - Основная иллюстрация к объявлению
+author - ForeignKey - - Пользователь, оставивший объявление
+is_active - BooleanField - По умолчанию True, индексированное - Признак, показывать ли объявление в списке
+created_at - DateTimeField - Подставляется текущее значение даты-времени, индексированное - Дата и время публикации
+
+Особенности модели: запрет каскадного удаления при удалении подрубрики и отсутствие запрета при удалении пользователя - предполагается что при удалении пользователя, следом удаляются и его объявления.
+
+Графические файлы, сохраняемые в поле модели image будут иметь в качестве имен временные метки - это позволит иметь одинаковые имена файлов и устраняем проблему большой длины имени (не влазящего в поле модели).
+
+Нужно предполагать, что будет модель дополнительных иллюстраций, которую свяжем с моделью объявлений связью "один-с-многими". Если при этом мы разрешим каскадное удаление, то при удалении объявления будут удалены все дополнительные иллюстрации этого объявления. Но это действие выполнит не Django, а система СУБД, отчего приложение django_cleanup не получит сигнала об удалении записей, не удалит графические файлы и они останутся мусором на диске. Эта проблема обязательно решится, а пока условимся об имени модели дополнительных иллюстраций - AdditionalImage. Эта проблема решилась за счет переопределения метода delete(), в котором сначала перебираются все связанные с данным объявлением записи дополнительных изображений и удаляются стандартными средствами, автоматически генерирующими сигнал post_delete (который и перехватывается утилитой django_cleanup).
+
+Модуль utilities.py хорошо подходит для хранения кода, не относящегося ни к моделям, ни к редакторам, ни к контроллерам. В него поместим код функции get_timestamp_path(), генерирующей имена сохраняемых в модели выгруженных файлов. 
+
+/bboard/main/utilities.py
+##############################################################################
+# импорты для функции генерации имен изображений get_timestamp_path()
+from datetime import datetime
+from os.path import splitext
+...
+def get_timestamp_path(instance, filename):
+    return '%s%s' % (datetime.now().timestamp(), splitext(filename)[1])
+##############################################################################
+
+
+Напишем модель объявлений Bb. В переопределенном методе delete() перед удалением текущей записи, мы перебираем и удаляем все дополнительные иллюстрации. При вызовае delete() возникает сигнал post_delete, который обрабатывается приложением django_cleanup - удаляются все файлы, хранящиеся в удаляемой записи, хранящей дополнительную иллюстрацию.
+
+/bboard/main/models.py
+##############################################################################
+# импорт для модели объявлений
+from .utilities import get_timestamp_path
+:
+class Bb(models.Model):
+    """
+    Модель объявлений.
+    """
+    rubric = models.ForeignKey(
+            SubRubric,
+            on_delete = models.PROTECT,
+            verbose_name = 'Рубрика'
+            )
+    title = models.CharField(
+            max_length = 40,
+            verbose_name = 'Товар'
+            )
+    content = models.TextField(
+            verbose_name = 'Описание'
+            )
+    price = models.FloatField(
+            default = 0,
+            verbose_name = 'Цена'
+            )
+    contacts = models.TextField(
+            verbose_name = 'Контакты'
+            )
+    image = models.ImageField(
+            blank = True,
+            upload_to = get_timestamp_path,
+            verbose_name = 'Изображение'
+            )
+    author = models.ForeignKey(
+            AdvUser,
+            on_delete = models.CASCADE,
+            verbose_name = 'Автор объявления'
+            )
+    is_active = models.BooleanField(
+            default = True,
+            db_index = True,
+            verbose_name = 'Выводить в списке'
+            )
+    created_at = models.DateTimeField(
+            auto_now_add = True,
+            db_index = True,
+            verbose_name = 'Опубликовано'
+            )
+
+    def delete(self, *args, **kwargs):
+        """
+        Переопределенный метод для удаления всех связанных с объявлениями 
+        дополнительных иллюстраций. 
+        """
+        for ai in self.additionalimage_set.all():
+            ai.delete()
+        super().delete(*args, **kwargs)
+
+    class Meta:
+        verbose_name_plural = 'Объявления'
+        verbose_name = 'Объявление'
+        ordering = ['-created_at']
+##############################################################################
+
+
+34.2.2. Модель дополнительных иллюстраций.
+
+Назовем ее AdditionalImage, структура ее полей:
+
+bb - ForeignKey - Объявление, к которому отностися иллюстрация
+image - ImageField - Собственно иллюстрация.
+
+Графические файлы также будем именовать временной отметкой с помощью уже имеющейся утилиты get_timestamp_path().
+
+Модель графических файлов:
+
+/bboard/main/models.py
+##############################################################################
+# импорт для модели объявлений
+from .utilities import get_timestamp_path
+
+class AdditionalImage(models.Model):
+    """
+    Модель дополнительных изображений.
+    """
+    bb = models.ForeignKey(
+            Bb,
+            on_delete = models.CASCADE,
+            verbose_name = 'Объявление'
+            )
+    image = models.ImageField(
+            upload_to = get_timestamp_path,
+            verbose_name = 'Изображение'
+            )
+
+    class Meta:
+        verbose_name_plural = 'Дополнительные иллюстрации'
+        verbose_name = 'Дополнительная иллюстрация'
+##############################################################################
+
+
+34.2.3. Релизация удаления объявлений в модели пользователя.
+
+При помощи переопределения метода delete() в модели объявлений, мы добились полноценного удаления связанных записей дополнительных изображений из БД - за счет переобра всех связанных записей изображений и удаления по одному - благодаря этому отрабатывает утилита django_cleanup - она реагирует на сигнал post_delete - этот сигнал похоже возникает при индивидуальном удалении записи. Теперь то же самое нужно сделать для модели пользователя - чтобы при удалении пользователя, удалялись все его объявления. 
+
+Для этого отредактируем модель AdvUser, переоределив в ней метод delete(). Правда непонятно, почему до сих пор не было разговора об связи модели пользователя с моделью объявлений, но допустим, будет позже. А, ну понял, модель AdvUser - первичная, а поле ForeignKey прописывается во вторичной модели, собственно, по нему и связывается.
+
+Стоит вспомнить, что доступ к менеджеру обратной связи от первичной модели к вторичной осуществляется с помощью синтаксиса вида self.bb_set.all() - доступ к связанным объявлениям, self.addititonalimage_set.all()
+
+/bboard/main/models.py
+##############################################################################
+class AdvUser(AbstractUser):
+    """
+    Модель пользователя. Связана с моделью объявлений.
+    """
+    is_activated = models.BooleanField(
+            default=True,
+            db_index=True,
+            verbose_name='Прошел активацию'
+            )
+    send_messages = models.BooleanField(
+            default=True,
+            verbose_name='Слать сообщения об новых комментариях'
+            )
+
+    def delete(self, *args, **kwargs):
+        """
+        Используется менеджер обратной связи для перебора связанных
+        с пользователем объявлений, для удаления всех его файлов в БД
+        с помощью django_cleanup.
+        """
+        for bb in self.bb_set.all():
+            bb.delete()
+        super().delete(*args, **kwargs)
+
+    class Meta(AbstractUser.Meta):
+        pass
+##############################################################################
+
+
+Выполняем миграции, наслаждаемся Чувством Собственного Величия. Даже сервер не вылетел.
+
+
+34.3. Инструменты для администрирования объявлений.
+
+Напишем редактор объявлений BbAdmin и встроенный редактор дополнительных иллюстраций AdditionalImageInline - для возможности работы с объявлениями посредством административного веб-сайта.
+
+/bboard/main/admin.py
+##############################################################################
+# импорт для редакторов объявлений и дополнительных иллюстраций
+from .models import Bb, AdditionalImage
+
+class AdditionalImageInline(admin.TabularInline):
+    """
+    Встроенный редактор дополнительных изображений.
+    """
+    model = AdditionalImage
+
+
+class BbAdmin(admin.ModelAdmin):
+    """
+    Редактор объявлений.
+    """
+    list_display = ('rubric', 'title', 'content', 'author', 'created_at')
+    fields = (('rubric', 'author'), 'title', 'content', 'price', 'contacts', 
+            'image', 'is_active')
+    inlines = (AdditionalImageInline,)
+
+# строка регистрации редактора объявлений + встроенный редактор доп. изображений
+admin.site.register(Bb, BbAdmin)
+##############################################################################
+
+
+На страницах добавления и правки объявлений выведем раскрывающиеся списки подрубрики и пользователя в одну строку - ради компактности.
+
+Сохраним, перезапустим сервер, войдем в админку, добавим пару объявлинй, обязательно с иллюстрациями. Попробуем исправить одно объявление и удалить второе, проверим, удалены ли файлы иллюстраций при этом.
+
+Как выяснилось, корневой папкой считается директория, лежащая рядом с директорией env. Соотвественно путь к медиафайлам будет отсчитываться именно от директории проекта, а не директории приложения. Типа все изображения - общие. Это зависит от настроек MEDIA_ROOT в settings.py.
+
+В процессе контроля выяснилось, что доп. изображения удаляются при удалении записи. Проверяю, возможно ли сменить доп.изображение. Кроме того, если заменить изображение в админке, то оно изменяется и в директории хранения.
+
+
+34.4. Вывод объявлений. 
+
+Создадим две страницы - страницу списка объявлений, относящихся к выбранной рубрике, с поддержкой пагинации и поиска объявлений по введеному слову и страницу сведений об выбранном объявлении, на которой будут выводиться также и дополнительные иллюстрации.
+
+Кроме того, реализуем вывод десяти наиболее свежих объявлений на главной страничке.
+
+
+34.4.1. Вывод списка объявлений.
+
+Это довольно сложная задача. Нам понадобится обычная, не связанная с моделью форма для ввода искомого слова, контроллер и шаблон. А еще придется решить серьезную проблему корректного возврата, о которой позже.
+
+
+34.4.1.1. Форма поиска и контроллер списка объявлений.
+
+Условимся, что искомое слово, введеное посетителем, будем пересылать контроллеру методом GET, в GET-параметре keyword. Поле в форме для ввода искомого слова назовем также.
+
+Поле ввода формы поиска. Поле необязательно для заполнения (может ввести искомое, может не ввести), пустая метка label - все равно обычно нет никаких поясняющих записей.
+
+/bboard/main/forms.py
+##############################################################################
+class SearchForm(forms.Form):
+    """
+    Форма для строки поиска по объявлениям.
+    """
+    keyword = forms.CharField(
+            required = False,
+            max_length = 20,
+            label = '',
+            )
+##############################################################################
+
+
+Заполним давно написанную контроллер-функцию by_rubric. Извлекаем выбранную посетителем рубрику - нам понадобится вывести на странице ее название. Затем выбираем объявления этой рубрики, помеченные для вывода - с флагом is_active == True. После этого, выполняем фильтрацию уже отобранных объявлений по введеному пользователем искомому слову, переданному в GET-параметре keyword. Фильтрацию выполняем с помощью объектов Q. 
+
+Далее создаем экземпляр формы SearchForm, чтобы вывести ее на экран. Конструктору ее класса, в параметре initital передаем передаем полученное ранее слово, чтобы оно присутствовало в выведенной форме.
+
+Не забываем пагинатор, указав количество выводимых записей - 2 - чтобы проверить работу пагинатора, имея всего три-четрые тестовых объявления в БД. Наконец, выводим страницу с списком объявлений, используя шаблон main/by_rubric.html, но который пока не пишем, так как нужно решить проблему с реализацией корректного возврата - чтобы после просмотра подробностей конкретного объявления на пятой странице пагинатора, нажатие кнопки назад приводило на ту же пятую страничку пагинатора, а не на самую первую страницу пагинатора.
+
+/bboard/main/views.py
+##############################################################################
+def by_rubric(request, pk):
+    """
+    Вывод списка всех обяъвлений рубрики, с пагинацией и фильтрацией 
+    в полях заголовка и описания по искомому слову.
+    """
+    rubric = get_object_or_404(SubRubric, pk)
+    bbs = Bb.objects.filter(is_active=True, rubric=pk)
+    if 'keyword' in request.GET:
+        keyword = request.GET['keyword']
+        q = Q(title__icontains=keyword) | Q(content__icontains=keyword)
+        bbs = bbs.filter(q)
+    else:
+        keyword = ''
+    form = SearchForm(initial={'keyword': keyword})
+    paginator = Paginator(bbs, 2)
+    if 'page' in request.GET:
+        page_num = request.GET['page']
+    else:
+        page_num = 1
+    page = paginator.get_page(page_num)
+    context = {'rubirc': rubric, 'page': page, 'bbs': page.object_list, 'form': form}
+    return render(request, 'main/by_rubric.html', context)
+##############################################################################
+
+
+34.4.1.2. Реализация корректного возврата. 
+
+Решаем проблему возврата на ту же страницу пагинатора, при возврате из просмотра подробностей объявления. Аналогичная проблема возникает после выполнения поиска и просмотра подробностей объявления - возврат выполняется на первоначальный список объявлений вместо возврата на список найденных объявлений. 
+
+Общий прицинп решения - номер выводимой части и искомое слово у нас передаются через GET-параметры page и keyword. Соответственно, чтобы вернуться на нужную нам страницу следует передать эти параметры странице подробных сведений об объявлении, чтобы воспользоваться ими после просмотра этой страницы.
+
+Как вариант, исползовать уже имеющийся набор GET-параметров из элемента с ключом QUERY_STRING словаря, который хранится в атрибуте META объекта запроса. Но нет смысла смысла передавать параметр page, если его значение равно 1 и параметр keyword с пустой строкой - это их значения по умолчанию. 
+
+Также можно формировать набор GET-параметров в контроллере, но по принятым в Django соглашениям, весь код, ответственный за формирование страниц нужно помещать в шаблон, посредник (middleware), или в обработчик контекста (наш случай).
+
+Откроем модуль middlewares.py пакета приложения, найдем обработчик контекста bboard_context_processor() (написанный в главе 33), и вставим в него блок кода, реализующий добавление в все контексты двух новых переменных - keyword с GET-параметром keyword, который понадобится для генерирования интернет-адресов в гиперссылках пагинатора и all - с GET-параметрами keyword и page, которые мы добавим к интернет-адресам гиперссылок, указывающих на страницы сведений об объявлениях.
+
+/bboard/main/middlewares.py
+##############################################################################
+# Обработчик контекста
+
+from .models import SubRubric
+
+def bboard_context_processor(request):
+    """
+    Обработчик контекста, добавляющий во все запросы к шаблонам переменную
+    rubrics, содержащую список всех подрубрик. Нужен чтобы не передавать эту
+    переменную во всех контроллерах.
+
+    Также нужен, чтобы внести две переменные, хранящие страницу пагинатора и 
+    поисковое слово для возврата на эти страницы после просмотра подробностей
+    объявления, найденного поиском, или отображенного на странице пагинатора.
+    """
+    # добавляет список всех рубрик в контест всех шаблонов
+    context = {}
+    context['rubrics'] = SubRubric.objects.all()
+
+    # блок кода для комфортного возврата на страницу пагинатора
+    # и на список найденных объявлений после просмотра подробностей
+    context['keyword'] = ''
+    context['all'] = ''
+    if 'keyword' in request.GET:
+        keyword = request.GET['keyword']
+        if keyword:
+            context['keyword'] = '?keyword=' + keyword
+            context['all'] = context['keyword']
+    if 'page' in request.GET:
+        page = request.GET['page']
+        if page != '1':
+            if context['all']:
+                context['all'] += '&page=' + page
+            else:
+                context['all'] = '&page=' + page
+    return context
+##############################################################################
+
+
+34.4.1.3. Шаблон веб-страницы списка объявлений.
+
+Код шаблона main/by_rubric.html, который формирует страницу списка объявлений. Форма поиска прижата к правой части страницы за счет настроек типа табличной разметки и стилевых классов. 
+
+Шаблонизатор создается тегом {% bootstrap_pagination page url=keyword %}. Базовый интернет-адрес берется из переменной контекста шаблона, в которой хранится одноименный GET-параметр с искомым словом. В результате, при переходе на другую часть пагинатора контроллер получит это слово и выведет отфильтрованный по нему список объявлений.
+
+Нужно только найти какое нибудь изображение и сохранить его в директории static/main/ под именем empty.jpg. Ну или сменить имя изображения в коде шаблона.
+
+/bboard/main/templates/main/by_rubric.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% load thumbnail %}
+{% load static %}
+{% load bootstrap4 %}
+
+{% block title %}{{ rubric }}{% endblock %}
+
+{% block content %}
+<h2 class="mb-2">{{ rubric }}</h2>
+<div class="container-fluid mb-2">
+    <div class="row">
+        <div class="col">&nbsp;</div>
+        <form class="col-md-auto form-inline">
+            {% bootstrap_form form show_label=False %}
+            {% bootstrap_button content='Искать' button_type='submit' %}
+        </form>
+    </div>
+</div>
+{% if bbs %}
+<ul class="list-unstiled">
+    {% for bb in bbs %}
+    <li class="media my-5 p-3 border">
+        {% url 'main:detail' rubric_pk=rubric.pk pk=bb.pk as url %}
+        <a href="{{ url }}{{ all }}">
+            {% if bb.image %}
+            <img class="mr-3" src="{% thumbail bb.image 'default' %}">
+            {% else %}
+            <img class="mr-3" src="{% static 'main/empty.ipg' %}">
+            {% endif %}
+        </a>
+        <div class="media-body">
+            <h3><a href="{{ url }}{{ all }}">{{ bb.title }}</a></h3>
+            <div>{{ bb.content }}</div>
+            <p class="text-right font-weight-bold">{{ bb.price }} руб.</p>
+            <p class="text-right font-italic">{{ bb.created_at }}</p>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+
+{% bootstrap_pagination page url=keyword %}
+{% endif %}
+{% endblock %}
+##############################################################################
+
+
+34.4.2. Веб-страница сведений об выбранном объявлении.
+
+Эту страницу будет выводить контроллер detail(), который напишем позже, сейчас напишем маршрут - на этот контроллер, поместив его непосредственно перед маршрутом, ведущим на контроллер by_rubric(). В маршрутах можно увидеть определенную иерархию - страницы с списками объявлений со всей рубрики имеют шаблонные пути формата <рубрика>/, а страницы с отдельными объявлениями, принадлежащими определенной рубрике имеют шаблонные пути формата <рубрика>/<объявление>/. 
+
+
+/bboard/main/urls.py
+##############################################################################
+urlpatterns = [
+    path('<int:rubric_pk>/<int:pk>/', detail, name='detail'),
+    path('<int:pk>/', by_rubric, name='by_rubric'),
+    path('<str:page>/', other_page, name='other'),
+    ...
+        ]
+##############################################################################
+
+
+Контроллер detail() сделаем функцией - так как чуть позже будет нужно отредактировать его и добавить список комментариев к объявлению, а у контроллера-функции это сделать проще чем у класса. Кроме самого объявления в переменной bb мы готовим перечень связанных с ним дополнительных иллюстраций, записав его в переменную ais.
+
+/bboard/main/views.py
+##############################################################################
+def detail(request, rubric_pk, pk):
+    """
+    Отдельная страничка объявления.
+    """
+    bb = get_object_or_404(Bb, pk=pk)
+    ais = bb.additionalimage_set.all()
+    context = {'bb': bb, 'ais': ais}
+    return render(request, 'main/detail.html', context)
+##############################################################################
+
+
+Код шаблона страницы подробностей объявления. Здесь можно выделить два блока кода - вывод основных сведений об объявлении и вывод дополнительных иллюстраций.
+
+/bboard/main/templates/main/detail.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% block title %}{{ bb.title }} - {{ bb.rubric.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <div class="row">
+        {% if bb.image %}
+        <div class="col-md-auto">
+            <img src="{{ bb.image.url }}" class="main-image">
+        </div>
+        {% endif %}
+        <div class="col">
+            <h2>{{ bb.title }}</h2>
+            <p>{{ bb.content }}</p>
+            <p class="font-weight-bold">{{ bb.price }} руб.</p>
+            <p>{{ bb.contacts }}</p>
+            <p class="text-right font-italic">Добавлено {{ bb.created_at }}</p>
+        </div>
+    </div>
+</div>
+{% if ais %}
+<div class="d-flex justify-content-between flex-wrap mt-5">
+    {% for i in ais %}
+    <div>
+        <img class="additional-image" src="{{ ai.image.url }}">
+    </div>
+</div>
+{% endif %}
+<p><a href="{% url 'main:by_rubric' pk=bb.rubric.pk %}{{ all }}">Назад</a></p>
+{% endblock %}
+##############################################################################
+
+
+Отредактируем таблицу css-стилей, чтобы установить ширину основной и дополнительной иллюстраций:
+
+/bboard/main/static/main/style.css
+##############################################################################
+...
+img.main-image {
+    width: 300px;
+}
+
+img.additional-image {
+    width: 180px;
+}
+...
+##############################################################################
+
+
+Сохраним код, перейдем на страницу со списком всех объявлинй и попробуем просмотреть одно из них (одно только и имеется).
+
+Исправил пару опечаток в шаблонах и в контроллере, все заработало как нужно.
+
+
+34.4.3. Вывод последних 10 объявлений на главной веб-странице.
+
+Отредактируем код контроллера index(). 
+
+/bboard/main/views.py
+##############################################################################
+def index(request):
+    """
+    Главная страничка. Выводится 10 последних объявлений.
+    """
+    bbs = Bb.objects.filter(is_active=True)[:10]
+    context = {'bbs': bbs}
+    return render(request, 'main/index.html', context)
+##############################################################################
+
+
+Отредактируем самостоятельно код шаблона index.html, за основу можно взять by_rubric.html
+
+/bboard/main/templates/main/index.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% load thumbnail %}
+{% load static %}
+{% load bootstrap4 %}
+
+{% block title %}Главная{% endblock %}
+
+{% block content %}
+<h2 class="mb-2">Главная</h2>
+<ul class="list-unstiled">
+    {% for bb in bbs %}
+    <li class="media my-5 p-3 border">
+        {% url 'main:detail' rubric_pk=bb.rubric.pk pk=bb.pk as url_detail %}
+        <div>
+            <a href="{{ url_detail }}{{ all }}">
+            {% if bb.image %}
+            <img class="mr-3" src="{% thumbnail bb.image 'default' %}">
+            {% else %}
+            <img class="mr-3" src="{% static 'main/empty.png' %}">
+            {% endif %}
+        </a>
+        </div>
+        <div class="media-body">
+            <h3><a href="{{ url_detail }}{{ all }}">{{ bb.title }}</a></h3>
+            <div>{{ bb.content }}</div>
+            <p class="text-right font-weight-bold">{{ bb.price }} руб.</p>
+            <p class="text-right font-italic">{{ bb.created_at }}</p>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}
+##############################################################################
+
+
+Подправил еще пару опечаток и все заработало.
+
+
+34.5. Работа с объявлениями.
+
+Осталось добавить инструменты для работы с объявлениями - для просмотра пользоватлеями списка своих объявлений, добавления, правки, удаления объявлений.
+
+
+34.5.1. Вывод объявлений, оставленных текущим пользователем.
+
+Нам нужно выделить сообщения текущего пользователя. Для этого отфильтруем все объявления по полю author и передадим получившийся список в шаблон странички профиля пользователя. 
+
+Внесем эти изменения в контроллер profile(). Мы фильтруем по полю author, сравнивая имя пользователя создавшего объявление и имя текущего пользователя. 
+
+/bboard/main/views.py
+##############################################################################
+...
+@login_required
+def profile(request):
+    """
+    Страничка профиля. Вывод всех объявлений текущего пользователя.
+    """
+    bbs = Bb.objects.filter(author=request.user.pk)
+    context = {'bbs': bbs}
+    return render(request, 'main/profile.html', context)
+...
+##############################################################################
+
+
+Для вывода списка объявлений, добавим на шаблон страницы пользователя profile.html код из шаблона by_rubric.html списка объявлений рубрики. Главное - не забыть импортировть библиотеки тегов static, bootstrap4 и thumbnail.
+
+/bboard/main/templates/main/profle.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% load thumbnail %}
+{% load static %}
+{% load bootstrap4 %}
+
+{% block title %}Профиль пользвателя{% endblock %}
+
+{% block content %}
+<h2>Профиль пользователя {{ user.username }}</h2>
+{% if user.first_name and user.last_name %}
+    <p>Здравствуйте, {{ user.first_name }} {{ user.last_name }}!</p>
+{% else %}
+    <p>Здравствуйте!</p>
+{% endif %}
+<h3>Ваши объявления</h3>
+{% if bbs %}
+<ul class="list-unstiled">
+    {% for bb in bbs %}
+    <li class="media my-5 p-3 border">
+        {% url 'main:detail' rubric_pk=bb.rubric.pk pk=bb.pk as url_detail %}
+        <a href="{{ url_detail }}{{ all }}">
+            {% if bb.image %}
+            <img class="mr-3" src="{% thumbnail bb.image 'default' %}">
+            {% else %}
+            <img class="mr-3" src="{% static 'main/empty.png' %}">
+            {% endif %}
+        </a>
+        <div class="media-body">
+            <h3><a href="{{ url_detail }}{{ all }}">{{ bb.title }}</a></h3>
+            <div>{{ bb.content }}</div>
+            <p class="text-right font-weight-bold">{{ bb.price }} руб.</p>
+            <p class="text-right font-italic">{{ bb.created_at }}</p>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}
+
+##############################################################################
+
+
+Страничка списка объявлений пользователя - общедоступная, возможно это не очень удобно, поэтому создадим другую, административную страничку сведений об объявлении, доступную лишь зарегистрированным пользователям.
+
+Сначала объявим маршрут на эту страничку.
+
+/bboard/main/urls.py
+##############################################################################
+urlpatterns = [
+    path('accounts/profile/<int:pk>/', profile_bb_detail, name='profile_bb_detail'),
+    ...
+]
+##############################################################################
+
+
+Контроллер-функцию profile_bb_detail(), выводящий страницу сведений об объвлении напишем на основе контроллера detail(), сделав его доступным только для пользователей, выполнивших вход. Что делать с ним - не знаю, ну просто в шаблоне в будущем добавлю отметку, мол это особо подробная страничка. Решил сделать просто отдельный вариант формирования ссылок на эти объявленния, указание имени в title и укзание что это объявления данного пользователя.
+
+/bboard/main/views.py
+##############################################################################
+@login_required
+def profile_bb_detail(request, pk):
+    """
+    Отдельная страничка объявления, видимая только зарегистрированным 
+    пользователям.
+    """
+    bb = get_object_or_404(Bb, pk=pk)
+    ais = bb.additionalimage_set.all()
+    context = {'bb': bb, 'ais': ais}
+    return render(request, 'main/detail_user_registered.html', context)
+##############################################################################
+
+
+Еще нужен шаблон этой особой странички с подробностями. Сделаем его на основе шаблона detail.html.
+
+/bboard/main/templates/main/detail_user_registered.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% block title %}{{ user.username }} - {{ bb.title }}{% endblock %}
+
+{% block content %}
+<h2>Объявлениe {{ user.username }}</h2>
+<div class="container-fluid mt-3">
+    <div class="row">
+        {% if bb.image %}
+        <div class="col-md-auto">
+            <img src="{{ bb.image.url }}" class="main-image">
+        </div>
+        {% endif %}
+        <div class="col">
+            <h2>{{ bb.title }}</h2>
+            <p>{{ bb.content }}</p>
+            <p class="font-weight-bold">{{ bb.price }} руб.</p>
+            <p>{{ bb.contacts }}</p>
+            <p class="text-right font-italic">Добавлено {{ bb.created_at }}</p>
+        </div>
+    </div>
+</div>
+{% if ais %}
+<div class="d-flex justify-content-between flex-wrap mt-5">
+    {% for ai in ais %}
+    <div>
+        <img class="additional-image" src="{{ ai.image.url }}">
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+</br>
+<p><a href="{% url 'main:profile' %}{{ all }}">Назад</a></p>
+{% endblock %}
+##############################################################################
+
+
+И отредактируем ссылки на страницы детальной информации, формируемые в личном кабинете пользователя.
+
+/bboard/main/templates/main/profle.html
+##############################################################################
+...
+        {% url 'main:profile_bb_detail' pk=bb.pk as url_detail %}
+...
+##############################################################################
+
+
+Работает нормально, отлично, все и в планируемом режиме.
+
+
+34.5.2. Добавление, правка и удаление объявлений.
+
+Объявим форму BbForm, связанную с моделью Bb для ввода самого объявления, и встроенный набор  форм AIFormSet, связанный с моделью AddititonalImage в которые будут заноситься дополнительные иллюстрации. 
+
+В форме будем выводить все поля модели Bb. Для поля author (автор объявления) в качестве элемента управления зададим HiddenInput - скрытое поле, в него значение будет заноситься программно. 
+
+Код этих форм:
+
+/bboard/main/forms.py
+##############################################################################
+# импорт для формы, свзянной с моделью объявления Bb
+from django.forms import inlineformset_factory
+from .models import Bb, AdditionalImage
+
+class BbForm(forms.ModelForm):
+    """
+    Форма для редактирования объявления, связанная с моделью Bb
+    """
+    class Meta:
+        model = Bb
+        fields = '__all__'
+        widgets = {'author': forms.HiddenInput}
+
+# встроенный набор форм для внесения дополнительных иллюстраций
+AIFormSet = inlineformset_factory(Bb, AdditionalImage, fields='__all__')
+##############################################################################
+
+
+Контроллер, добавляющий объявление сделаем в виде функции (в виде класса будет сложнее) и назовем profile_bb_add(). Три важных момента: во первых, при создании формы, мы заносим в поле author ключ текущего пользователя; во вторых при создании объектов формы и набора форм, мы должны передать их конструкторам вторым позиционным аргументом словарь со всеми полученными файлами (хранится в атрибуте FILES текущего запроса), чтобы не потерять эти файлы; в третьих при сохранении сначала выполняется валидация и сохранение формы самого объявления методом save(). Этот метод возвращает сохраненную запись, и именно ее нужно передать через параметр instance конструктору класса набора форм - все это для того, чтобы все дополнительные иллюстрации после сохранения оказались связанными с объявлением.
+
+/bboard/main/views.py
+##############################################################################
+@login_required
+def profile_bb_add(request):
+    """
+    Контроллер добавления нового объявления.
+    """
+    if request.method == "POST":
+        form = BbForm(request.POST, request.FILES)
+        if form.is_valid():
+            bb = form.save()
+            formset = AIFormSet(request.POST, request.FILES, instance=bb)
+            if formset.is_valid():
+                formset.save()
+                messages.add_message(request, messages.SUCCESS, 'Объявление добавлено')
+                return redirect('main:profile')
+    else:
+        form = BbForm(initial={'author': request.user.pk})
+        formset = AIFormSet()
+    context = {'form': form, 'formset': formset}
+    return render(request, 'main/profile_bb_add.html', context)
+##############################################################################
+
+
+Напишем маршрут, который укажет на страницу добавления, разместив его перед маршрутом на страницу профиля:
+
+...
+urlpatterns =[
+    ...
+    path('accounts/profile/add/', profile_bb_add, name='profile_bb_add'),
+    path('accounts/profile/<int:pk>/', profile_bb_detail, name='profile_bb_detail'),
+    ...
+]
+
+
+Займемся шаблоном main/profile_bb_add.html, который создает страничку добавления объявления. Обязательно укажем у формы метод кодирования данных multipart/form-data, иначе файлы не будут отправлены. Набор форм выведем с помощью тега шаблонизатора bootstrap_formset.
+
+/bboard/main/templates/main/profile_bb_add.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% load bootstrap4 %}
+
+{% block title %}Добавление объявления - Профиль пользователя{% endblock %}
+
+{% block content %}
+<h2>Доблавление объявления</h2>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% bootstrap_form form layout='horizontal' %}
+    {% bootstrap_formset formset layout='horizontal' %}
+    {% buttons submit='Добавить' %}{% endbuttons %}
+</form>
+{% endblock %}
+##############################################################################
+
+
+Добавим в шаблон страницы профиля гиперссылку на страницу добавления объявления:
+
+/bboard/main/templates/layout/basic.html
+##############################################################################
+...
+    <a class="dropdown-item" href="{% url 'main:profile_bb_add' %}">Добавить объявление</a>
+...
+##############################################################################
+
+
+Все работает, но очень интересно взаимодействует с Adblock'ом. При включенном работаеющем Adblock'е все нормально. Но если отключить, то возникает GET-запрос на {"GET":{"scheme":"https","host":"cdn.jsdelivr.net","filename":"/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"}} скорее всего для подгрузки данных. Зачем, для чего, почему оно удаляется при отключении Adblock, почему не хранится локально, что за хрень вообще. Приходится раздвать интернет и после обращения на этот ресурс все начинает работать нормально.
+
+
+Контроллер редактирования объявлений:
+
+/bboard/main/views.py
+##############################################################################
+@login_required
+def profile_bb_change(request, pk):
+    """
+    Редактирование объявлений
+    """
+    bb = get_object_or_404(Bb, pk=pk)
+    if request.method == "POST":
+        """ ветка сохранения изменений """
+        form = BbForm(request.POST, request.FILES, instance=bb)
+        if form.is_valid():
+            bb = form.save()
+            formset = AIFormSet(request.POST, request.FILES, instance=bb)
+            if formset.is_valid():
+                formset.save()
+                messages.add_message(request, messages.SUCCESS, 'Объявление исправлено')
+                return redirect('main:profile')
+    else:
+        """ ветка вывода формы для редактирования """
+        form = BbForm(instance=bb)
+        formset = AIFormSet(instance=bb)
+        context = {'form': form, 'formset': formset}
+        return render(request, 'main/profile_bb_change.html', context)
+##############################################################################
+
+
+Контроллер удаления объявления. Для простоты не будем выводить доп иллюстрации - они там не нужжны.
+
+/bboard/main/views.py
+##############################################################################
+@login_required
+def profile_bb_delete(request, pk):
+    """
+    Удаление объявления
+    """
+    bb = get_object_or_404(Bb, pk=pk)
+    if request.method == "POST":
+        bb.delete()
+        messages.add_message(request, messages.SUCCESS, 'Объявление удалено')
+        return redirect('main:profile')
+    else:
+        context = {'bb': bb}
+        return render(request, 'main/profile_bb_delete.html', context)
+##############################################################################
+
+
+Объявим необходимые маршруты:
+
+...
+urls = [
+    path('accounts/profile/delete/<int:pk>/', profile_bb_delete, name='profile_bb_delete'),
+    path('accounts/profile/change/<int:pk>/', profile_bb_change, name='profile_bb_change'),
+    path('accounts/profile/add/', profile_bb_add, name='profile_bb_add'),
+        ]
+...
+
+
+Шаблоны страниц удаления и редактирования предлагается написать самому.
+
+Сначала добавим код ссылок на странички редактирования и удаления объявленй в каждое объявление. Редактируем страничку профиля пользователя, добавляя ссылки с url-параметром, передающим pk самого объявления.
+
+/bboard/main/templates/main/profle.html
+##############################################################################
+...
+    <div class="media-body">
+        <p>Рубрика: {{ bb.rubric }}</p>
+        <h3><a href="{{ url_detail }}{{ all }}">{{ bb.title }}</a></h3>
+        <div>{{ bb.content }}</div>
+        <p class="text-right font-weight-bold">{{ bb.price }} руб.</p>
+        <p class="text-right font-italic">{{ bb.created_at }}</p>
+        <p class="text-right mt-2">
+        <a href="{% url 'main:profile_bb_change' pk=bb.pk %}">Исправить</a>
+        <a href="{% url 'main:profile_bb_delete' pk=bb.pk %}">Удалить</a>
+        </p>
+    </div>
+...
+##############################################################################
+
+
+Шаблон страницы редактирования делаю на основе шаблона страницы редактирования данных профиля "main/change_user_info.html" и шаблон добавления нового объявления (в нем есть код вывода формы и набора форм). Работает слегка криво - выодится еще три слота под изображения, уже имеющися изобржения нужно похоже подтверждать еще раз.
+
+/bboard/main/templates/main/profile_bb_change.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% load bootstrap4 %}
+
+{% block title %}Правка объявления{% endblock %}
+
+{% block content %}
+<h2>Правка объявления</h2>
+<form method="post">
+    {% csrf_token %}
+    {% bootstrap_form form layout='horizontal' %}
+    {% bootstrap_formset formset layout='horizontal' %}
+    {% buttons submit='Сохранить' %}{% endbuttons %}
+</form>
+{% endblock %}
+##############################################################################
+
+
+В принципе работает, но нормально не сохраняет новые изображения. Нужно проверить контроллер. Выглядит так, будто после нажатия на Сохранить, в БД не уходят никакие выбранные изображения. Кроме того, при редактировании если удалять изображения через форму редактирования, то ссылки на изображения удаляются из БД, но не удалются сами файлы - так и остаются висеть в общей директории. ТАк как текст объявления редактируется успешно, то пока плюнем
+
+
+Шаблон удаления объявления сделаю на основе шаблона удаления пользователя delete_user.html. Отрабатывает замечательно.
+
+/bboard/main/templates/main/profile_bb_delete.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% load bootstrap4 %}
+
+{% block title %}Удаление объявления{% endblock %}
+
+{% block content %}
+<h2>Удаление объявления</h2>
+<form method="post">
+    {% csrf_token %}
+    {% buttons submit='Удалить' %}{% endbuttons %}
+</form>
+{% endblock %}
+##############################################################################
+
+
+
+
+Глава 35. Комментарии.
+
+их можно оставлять к каждому из опубликованных объявлений.
+
+
+35.1. Подготовка к выводу CAPTCHA.
+
+Сделаем так, чтобы пользователи могли оставлять комментарии беспрепятственно, а гости должны были дополнительно вводить капчу - для защиты от спама.
+
+Установим капчу:
+    
+    pip install django-simple-captcha
+
+
+Добавим в настройки, в список зарегистрированных приложений приложение captcha - программное ядро этой библиотеки
+
+    INSTALLED_APPS = [
+        ...
+        'captcha',
+    ]
+
+
+Объявим в списке маршрутов уровня проекта, маршрут, указывающий на это приложение. 
+
+/bboard/bboard/urls.py
+##############################################################################
+urlpatterns = [
+    ...
+    path('captcha/', include('captcha.urls')),
+    ...
+]
+##############################################################################
+
+
+До выполнения миграции нужно создать модель комментария.
+
+
+35.2. Модель комментария.
+
+Модель, хранящую комментарии назовем Comment, ее структура:
+
+bb - ForeignKey - Каскадное удаление разрешено - Объявление, к которому оставлен комментарий.
+author - CharField - Длина 30 символов - Имя автора
+content - TextField - ... - Содержание
+is_active - BooleanField - Значение по умолчанию True, индексированное - Признак показывать или нет комментарий
+created_at - DateTimeField - Подставляется текущее значение даты-времени, индексированное - дата-время публикации
+
+
+Модель комментария. Сортировку указываем по увеличению временной метки их добавления - старые комментарии в начале списка, новые в конце. 
+
+/bboard/main/models.py
+##############################################################################
+class Comment(models.Model):
+    """
+    Модель комментария. Связана с моделью объявлений.
+    """
+    bb = models.ForeignKey(
+            Bb, 
+            on_delete=models.CASCADE,
+            verbose_name='Объявление'
+            )
+    author = models.CharField(
+            max_length=30,
+            verbose_name='Автор'
+            )
+    content = models.TextField(
+            verbose_name='Содержание'
+            )
+    is_active = models.BooleanField(
+            default=True,
+            db_index=True,
+            verbose_name='Выводить не экран?'
+            )
+    created_at = models.DateTimeField(
+            auto_now_add=True,
+            db_index=True,
+            verbose_name='Опубликован'
+            )
+
+    class Meta:
+        verbose_name_plural = 'Комментарии'
+        verbose_name = 'Комментарий'
+        ordering = ['created_at',]
+##############################################################################
+
+
+Сгенерируем и выполним миграции. Проверяю через шелл - модель создалась и работает.
+
+
+
+35.3. Вывод и добавление комментариев.
+
+Список комментариев и форма для написания нового будет выводиться на общедоступной страничке сведений об объявлении. На административной страничке того же рода, комментарии также будут выводиться, но с ней чуть позже.
+
+Объявим связанные с моделью формы UserCommentForm и GuestCommentForm, в принципе понятно различие - в одну будут заносить комментарии гости, в другую - пользователи. Поле is_active (признак показа комментария) уберем из формы - этот флаг нужен лишь администрации. У поля bb, связанного с объявлением укажем в качестве управляющего элемента скрытое поле.
+
+/bboard/main/forms.py
+##############################################################################
+...
+# импорт для формы, связанной с моделью комментариев Comment
+from captcha.fields import CaptchaField
+from .models import Comment
+...
+
+class UserCommentForm(forms.ModelForm):
+    """
+    Форма ввода комментария, предназначенная для заполения 
+    зарегистрированным пользователем.
+    """
+    class Meta:
+        model = Comment
+        exclude = ('is_active', )
+        widgets = {'bb': forms.HiddenInput}
+
+
+class GuestCommentForm(forms.ModelForm):
+    """
+    Форма ввода комментариев, для гостей.
+    """
+    captcha = CaptchaField(
+            label='Введите текст с картинки',
+            error_messages={'invalid': 'Неправильный текст'}
+            )
+
+    class Meta:
+        model = Comment
+        exclude = ('is_active',)
+        widgets = {'bb': forms.HiddenInput}
+##############################################################################
+
+
+Теперь нужно существенно обновить код контроллера detail(), для возможности вывода комментариев и написания нового. Обновим контроллер. В поле bb модели комментария заносим ключ объявления для связи их. Если текущий пользователь выполнил вход на сайт, то заносим его имя в поле author этой формы комментария. Если текущий пользователь выполнил вход на сайт, то создаем форму на основе класса UserCommentForm, если не выполнил - то на основе GuestCommentUser. 
+
+Объект формы сохраняется в переменной form, форма из этой переменной позже будет выведена на странице сведений об объявлении. Далее, если полученный запрос был отправлен методом POST (т.е. посетитель ввел комментарий и отправил на сохранение), то создаем еще один объект формы (в переменной c_form), передав конструктору полученные данные, валидируем форму и в случае успеха валидации сохраняем введеный комментарий и выводим всплывающее сообщение. После этого, страница будет выводить новый комментарий и пустую форму ввода для следующего комментария. Если валидация была неуспешна, то данные из формы c_form копируются в форму form, которая теперь хранит неверные данные, чтобы пользователь видел, что он ввел и мог исправить. 
+
+/bboard/main/views.py
+##############################################################################
+def detail(request, rubric_pk, pk):
+    """
+    Отдельная страничка объявления. Вывод комментариев к объявлению.
+    Форма ввода новых комментариев.
+    """
+    bb = get_object_or_404(Bb, pk=pk)
+    ais = bb.additionalimage_set.all()
+    comments = Comment.objects.filter(bb=pk, is_active=True)
+    initial = {'bb': bb.pk}
+    if request.user.is_authenticated:
+        initial['author'] = request.user.username
+        form_class = UserCommentForm
+    else:
+        form_class = GuestCommentForm
+    form = form_class(initial=initial)
+    if request.method == "POST":
+        c_form = form_class(request.POST)
+        if c_form.is_valid():
+            c_form.save()
+            messages.add_message(request, messages.SUCCESS, 'Комментарий добавлен')
+        else:
+            form = c_form
+            messages.add_message(request, messages.WARNING, 'Комментарий не добавлен')
+    context = {'bb': bb, 'ais': ais, 'comments': comments, 'form': form}
+    return render(request, 'main/detail.html', context)
+##############################################################################
+
+
+Отредакируем шаблон detail.html. Вставим в самый конец тега block content ... endblock. Работает, отлично. Стилевой класс my-2 задает небольшие отступы сверху и снизу, стилевой класс p-2 задает небольшие внутренние отступы со всех сторон. Используем эти классы чтобы создать просветы между отдельными комментариями.
+
+Комментарии можно оставлять гостям - капча работает, объявления остаются.
+
+/bboard/main/templates/main/detail.html
+##############################################################################
+...
+<h4 class='mt-5'>Новый комментарий</h4>
+<form method="post">
+    {% csrf_token %}
+    {% bootstrap_form form layout='horizontal' %}
+    {% buttons submit='Добавить' %}{% endbuttons %}
+</form>
+{% if comments %}
+<div class="mt-5">
+    {% for comment in comments %}
+    <div class="my-2 p-2 border">
+        <h5>{{ comment.author }}</h5>
+        <p>{{ comment.content }}</p>
+        <p class="text-right font-italic">{{ comment.created_at }}</p>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+##############################################################################
+
+
+Осталось добавить подобный функционал на административную страницу сведений об объявлении. Кроме того, хочется к этой же странице (административной, доступной для зарегистрированного пользователя, выводящей доп. инфо) добавить кнопки Редактировать и Удалить объявления. Эти кнопки пока есть только на странице всего списка объявлений пользователя.
+
+Для этого пришлось отредактировать также контроллер данной странички - просто скопировал из detail() в profile_bb_detail() код, формирующий форму и контекст шаблона с ней.
+
+/bboard/main/templates/main/detail_user_register.html
+##############################################################################
+{% extends "layout/basic.html" %}
+
+{% load bootstrap4 %}
+{% load static %}
+
+{% block title %}{{ user.username }} - {{ bb.title }}{% endblock %}
+
+{% block content %}
+<h2>Объявлениe {{ user.username }}</h2>
+<div class="container-fluid mt-3">
+    <div class="row">
+        {% if bb.image %}
+        <div class="col-md-auto">
+            <img src="{{ bb.image.url }}" class="main-image">
+        </div>
+        {% endif %}
+        <div class="col">
+            <h2>{{ bb.title }}</h2>
+            <p>{{ bb.content }}</p>
+            <p class="font-weight-bold">{{ bb.price }} руб.</p>
+            <p>{{ bb.contacts }}</p>
+            <p class="text-right font-italic">Добавлено {{ bb.created_at }}</p>
+        </div>
+    </div>
+</div>
+{% if ais %}
+<div class="d-flex justify-content-between flex-wrap mt-5">
+    {% for ai in ais %}
+    <div>
+        <img class="additional-image" src="{{ ai.image.url }}">
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+</br>
+<tr>
+    <td>
+        <a class="text-left mt-2" href="{% url 'main:profile' %}{{ all }}">Назад</a>
+    </td>
+    <td>
+        <a class="text-right mt-2" href="{% url 'main:profile_bb_change' pk=bb.pk %}">Исправить</a>
+        <a class="text-right mt-2" href="{% url 'main:profile_bb_delete' pk=bb.pk %}">Удалить</a>
+    </td>
+</tr>
+
+<!-- блок комментариев -->
+<h4 class='mt-5'>Новый комментарий</h4>
+<form method="post">
+    {% csrf_token %}
+    {% bootstrap_form form layout='horizontal' %}
+    {% buttons submit='Добавить' %}{% endbuttons %}
+</form>
+{% if comments %}
+<div class="mt-5">
+    {% for comment in comments %}
+    <div class="my-2 p-2 border">
+        <h5>{{ comment.author }}</h5>
+        <p>{{ comment.content }}</p>
+        <p class="text-right font-italic">{{ comment.created_at }}</p>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+##############################################################################
+
+
+соответвенно, новый код контроллера profile_bb_detail()
+
+/bboard/main/views.py
+##############################################################################
+@login_required
+def profile_bb_detail(request, pk):
+    """
+    Отдельная страничка объявления, видимая только зарегистрированным 
+    пользователям.
+    Отображает также комментарии, форму для комментариев, кнопки удаления 
+    и редактирования.
+    """
+    bb = get_object_or_404(Bb, pk=pk)
+    ais = bb.additionalimage_set.all()
+    comments = Comment.objects.filter(bb=pk, is_active=True)
+    initial = {'bb': bb.pk}
+    initial['author'] = request.user.username
+    form_class = UserCommentForm
+    form = form_class(initial=initial)
+    if request.method == "POST":
+        c_form = form_class(request.POST)
+        if c_form.is_valid():
+            c_form.save()
+            messages.add_message(request, messages.SUCCESS, 'Комментарий добавлен')
+        else:
+            form = c_form
+            messages.add_message(request, messages.WARNING, 'Комментарий не добавлен')
+    context = {'bb': bb, 'ais': ais, 'comments': comments, 'form': form}
+    return render(request, 'main/detail_user_registered.html', context)
+##############################################################################
+
+
+Комментарии работают, видимы, сохраняются, запись редактируется (если не трогать изображения). Допустим, идем дальше.
+
+
+35.4. Отправка уведомлений об новых комментариях.
+
+так как это достаточно вторичный функционал, не буду реализовывать его.
+
+
+
+
+Глава 36. Веб-служба REST.
+
+Напишем веб-службу, работающую по принципам REST. Она будет выдавать список из 10 последних объявлений, сведения об выбранном объявлении, список комментариев к заданному объявлению, позволит добавить новый комментарий. Для простоты разрешим комментировать объявления только зарегистрированным пользователям. 
+
+Решил, что до создания службы REST нужно еще лучше разобраться с Django, c REST - конкретно, просмотреть видео от selfedu по Django и REST, прочитать вторую книгу, перечитать главу Дронова про REST. Дело в том, что код этой службы выглядит так, будто придется прямо перенапрягаться, чтобы разобраться. Сначала пусть уляжется все простое в голове.
